@@ -556,7 +556,7 @@
   var current = 'region', loaded = {};
   function show(tab) {
     current = tab;
-    $$('.bottom button').forEach(function (b) { b.classList.toggle('on', b.dataset.tab === tab); });
+    $$('.bottom button').forEach(function (b) { b.classList.toggle('on', b.dataset.tab === (tab === 'fav' ? 'region' : tab)); });
     $$('.tab').forEach(function (s) { s.hidden = s.id !== 'tab-' + tab; });
     window.scrollTo(0, 0);
     if (tab === 'near') { if (!loaded.near) { loaded.near = 1; loadNear(); } else if (map) setTimeout(function () { map.invalidateSize(); }, 50); }
@@ -577,6 +577,7 @@
     loadRegion();
   }).catch(function (e) { fail($('#region-list'), e); });
   if ($('#beds-top')) $('#beds-top').href = ER_BEDS_URL;
+  $('#open-fav').addEventListener('click', function () { show('fav'); });
   // ───── 홈 화면 설치 안내 ─────
   (function () {
     var standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;

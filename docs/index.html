@@ -51,7 +51,10 @@
         <select id="sido" aria-label="시도"><option value="">시·도 선택</option></select>
         <select id="sggu" aria-label="시군구" disabled><option value="">시·군·구 전체</option></select>
       </div>
-      <button class="btn ghost" id="locate-region">📍 내 위치로</button>
+      <div class="row">
+        <button class="btn ghost" id="locate-region">📍 내 위치로</button>
+        <button class="btn ghost" id="open-fav">★ 즐겨찾기</button>
+      </div>
       <input id="kw" type="search" placeholder="병원 이름·주소 검색" autocomplete="off">
       <div class="chips" data-for="region">
         <button class="chip" data-f="openNow">지금 진료중</button>
@@ -94,7 +97,6 @@
   <!-- 야간·휴일 -->
   <section class="tab" id="tab-night" hidden>
     <div class="alert">아이가 숨쉬기 힘들어하거나, 경련·의식저하가 있으면 병원을 찾지 말고 <a href="tel:119"><b>119</b></a>에 바로 전화하세요.</div>
-    <div class="beds-row"><a class="btn ghost beds-btn" id="beds-top" target="_blank" rel="noopener" href="https://mediboard.nemc.or.kr/emergency_room_in_hand">🛏 응급실 실시간 병상 보기 ↗</a></div>
     <div class="panel">
       <div class="seg" id="night-mode">
         <button class="on" data-m="near">내 주변 20km</button>
@@ -147,6 +149,7 @@
 
   <!-- 즐겨찾기 -->
   <section class="tab" id="tab-fav" hidden>
+    <button class="btn ghost fav-back" data-go-tab="region">← 지역으로 돌아가기</button>
     <div class="count" id="fav-count"></div>
     <ul class="list" id="fav-list"></ul>
   </section>
@@ -157,8 +160,8 @@
   <button data-tab="near"><span class="ic">◎</span>내 주변</button>
   <button data-tab="night"><span class="ic">☾</span>야간·휴일</button>
   <button data-tab="pharm"><span class="ic">℞</span>약국</button>
+  <a class="nav-er" id="beds-top" href="https://mediboard.nemc.or.kr/emergency_room_in_hand" target="_blank" rel="noopener"><span class="ic">🛏</span>응급병상</a>
   <button data-tab="benefit"><span class="ic">♡</span>혜택</button>
-  <button data-tab="fav"><span class="ic">★</span>즐겨찾기</button>
 </nav>
 
 <!-- 상세 -->

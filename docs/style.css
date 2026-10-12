@@ -175,3 +175,6 @@ select:disabled { opacity: .5; }
 .beds-row { margin: 8px 16px 0; }
 .beds-btn { display: flex; align-items: center; justify-content: center; text-decoration: none; height: 42px; width: 100%; }
 .er-box .beds-btn { background: #fff; color: var(--red); border: 1px solid #f4c7c1; }
+.bottom .nav-er { flex: 1; height: var(--nav-h); display: grid; place-items: center; align-content: center; gap: 2px; font-size: 11px; color: var(--red); font-weight: 700; text-decoration: none; letter-spacing: -0.3px; }
+.bottom .nav-er .ic { font-size: 18px; line-height: 1; }
+#tab-fav .fav-back { display: block; width: calc(100% - 32px); margin: 10px 16px 0; }
