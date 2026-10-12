@@ -153,3 +153,4 @@ select:disabled { opacity: .5; }
 .er-box { margin: 4px 0 8px; padding: 11px 13px; border-radius: 12px; background: #fdecea; border: 1px solid #f4c7c1; color: #7d241b; font-size: 13.5px; display: grid; gap: 6px; }
 .er-box b { color: var(--red); font-size: 14px; }
 .er-box .btn { background: var(--red); text-decoration: none; display: flex; align-items: center; justify-content: center; }
+.bottom button { font-size: 11.5px; }

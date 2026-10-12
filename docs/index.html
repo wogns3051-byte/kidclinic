@@ -113,6 +113,29 @@
     <ul class="list" id="night-list"></ul>
   </section>
 
+  <!-- 약국 -->
+  <section class="tab" id="tab-pharm" hidden>
+    <div class="panel">
+      <div class="seg" id="ph-mode">
+        <button class="on" data-m="me">내 주변</button>
+        <button data-m="hosp" id="ph-hosp-btn" hidden>병원 근처</button>
+      </div>
+      <div class="row">
+        <select id="ph-radius" aria-label="반경">
+          <option value="1">반경 1km</option><option value="2" selected>반경 2km</option>
+          <option value="3">반경 3km</option><option value="5">반경 5km</option><option value="10">반경 10km</option>
+        </select>
+      </div>
+      <div class="chips" data-for="pharm">
+        <button class="chip" data-f="openNow">지금 영업중</button>
+        <button class="chip" data-f="late">밤 10시 이후</button>
+        <button class="chip" data-f="weekend">일·공휴일</button>
+      </div>
+    </div>
+    <div class="count" id="ph-count"></div>
+    <ul class="list" id="ph-list"></ul>
+  </section>
+
   <!-- 즐겨찾기 -->
   <section class="tab" id="tab-fav" hidden>
     <div class="count" id="fav-count"></div>
@@ -124,6 +147,7 @@
   <button class="on" data-tab="region"><span class="ic">▤</span>지역</button>
   <button data-tab="near"><span class="ic">◎</span>내 주변</button>
   <button data-tab="night"><span class="ic">☾</span>야간·휴일</button>
+  <button data-tab="pharm"><span class="ic">℞</span>약국</button>
   <button data-tab="fav"><span class="ic">★</span>즐겨찾기</button>
 </nav>
 

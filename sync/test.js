@@ -16,7 +16,7 @@ const H = [
 const xml = (items, total, code = '00') => `<?xml version="1.0"?><response><header><resultCode>${code}</resultCode><resultMsg>OK</resultMsg></header><body><items>${
   items.map((o) => '<item>' + Object.entries(o).map(([k, v]) => `<${k}>${v}</${k}>`).join('') + '</item>').join('')
 }</items><totalCount>${total}</totalCount></body></response>`;
-let detailCalls = 0, fullCalls = 0, failSeoul = false, brokenDetail = false;
+let detailCalls = 0, fullCalls = 0, pharmCalls = 0, failSeoul = false, brokenDetail = false;
 const mock = http.createServer((req, res) => {
   const q = new URL(req.url, 'http://x').searchParams;
   assert.strictEqual(q.get('serviceKey'), 'TESTKEY');
@@ -31,6 +31,17 @@ const mock = http.createServer((req, res) => {
       { dutyName: '서울하늘소아과의원', dutyDivNam: '소아전문센터', wgs84Lat: '37.5001', wgs84Lon: '127.0301' },
       { dutyName: '없는병원', dutyDivNam: '달빛어린이병원', wgs84Lat: '35.1', wgs84Lon: '129.0' },
     ], 3));
+  }
+  if (req.url.startsWith('/holi')) {
+    const m = q.get('solMonth');
+    return res.end(m === '12' ? xml([{ locdate: q.get('solYear') + '1225', dateName: '기독탄신일', isHoliday: 'Y' }], 1) : xml([], 0));
+  }
+  if (req.url.startsWith('/pharm')) {
+    pharmCalls++;
+    return res.end(xml([
+      { dutyName: '김천온누리약국', dutyAddr: '경북 김천시', dutyTel1: '054-1', wgs84Lat: '36.14', wgs84Lon: '128.11', dutyTime1s: '0900', dutyTime1c: '2300', dutyTime8s: '1000', dutyTime8c: '1800' },
+      { dutyName: '좌표없는약국', dutyAddr: 'x' },
+    ], 2));
   }
   if (req.url.startsWith('/er/getEgytListInfoInqire')) {
     return res.end(xml([
@@ -58,7 +69,7 @@ const mock = http.createServer((req, res) => {
   fs.mkdirSync(path.join(root, 'data'));
   fs.writeFileSync(path.join(root, 'data', 'moonlight.json'), JSON.stringify([{ _설명: 'x' }, { name: '구미아동병원', sido: '경북' }]));
   fs.writeFileSync(path.join(root, 'data', 'holidays.json'), '["2026-10-09"]');
-  Object.assign(process.env, { KIDCLINIC_ROOT: root, HIRA_SERVICE_KEY: 'TESTKEY', HIRA_LIST_URL: `http://127.0.0.1:${port}/list`, HIRA_DETAIL_URL: `http://127.0.0.1:${port}/detail`, DETAIL_DAILY_LIMIT: '2', NMC_BASE_URL: `http://127.0.0.1:${port}/nmc`, NMC_ER_BASE_URL: `http://127.0.0.1:${port}/er` });
+  Object.assign(process.env, { KIDCLINIC_ROOT: root, HIRA_SERVICE_KEY: 'TESTKEY', HIRA_LIST_URL: `http://127.0.0.1:${port}/list`, HIRA_DETAIL_URL: `http://127.0.0.1:${port}/detail`, DETAIL_DAILY_LIMIT: '2', NMC_BASE_URL: `http://127.0.0.1:${port}/nmc`, NMC_ER_BASE_URL: `http://127.0.0.1:${port}/er`, HOLIDAY_URL: `http://127.0.0.1:${port}/holi`, PHARM_URL: `http://127.0.0.1:${port}/pharm` });
   const s = require('./sync.js');
   let pass = 0; const ok = (c, m) => { assert.ok(c, m); pass++; console.log('  ✓ ' + m); };
   const out = () => JSON.parse(fs.readFileSync(path.join(root, 'docs', 'data', 'hospitals.json'), 'utf8'));
@@ -86,6 +97,11 @@ const mock = http.createServer((req, res) => {
   ok(fullCalls === 1, '전국 진료시간은 7일에 한 번만 받음');
   ok(b1.er === 1 && b1.el === '지역응급의료기관' && b1.et === '02-119-0000', '지정 응급의료기관·응급실 전화');
   ok(!a2.er, '응급실 운영 안 함(2)은 제외');
+  const y = new Date(Date.now() + 9 * 3600000).getUTCFullYear();
+  ok(meta().holidays.includes(y + '-12-25') && meta().holidays.includes('2026-10-09'), '공휴일 자동 + 손으로 넣은 날짜 합침');
+  const ph = JSON.parse(fs.readFileSync(path.join(root, 'docs', 'data', 'pharmacies.json'), 'utf8'));
+  ok(ph.length === 1 && ph[0].h[1] === '0900-2300' && ph[0].hh === '1000-1800' && meta().pharmCount === 1, '약국 영업시간·공휴일');
+  ok(pharmCalls === 1, '약국은 7일에 한 번만 받음');
   ok(!a1.hs && a1.h[1] === '0900-2100', '심평원 진료시간이 있으면 그대로 사용');
   failSeoul = true; H.splice(1, 1);
   console.log = () => {}; console.error = () => {};

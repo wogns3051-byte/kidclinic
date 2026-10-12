@@ -216,7 +216,14 @@ async function main() {
   await require('./nmc.js').supplement(state, callApi);
   writeJson(P.state, state, true);
 
-  // 4) 앱용 파일
+  // 4) 공휴일(자동) · 약국
+  const extra = require('./extra.js');
+  state.holidays = await extra.holidays(callApi, readJson(P.holi, []));
+  const pc = await extra.pharmacies(callApi, state, P.outDir);
+  if (pc) state.pharmCount = pc;
+  writeJson(P.state, state, true);
+
+  // 5) 앱용 파일
   buildOutputs(state);
 }
 
@@ -269,7 +276,9 @@ function buildOutputs(state) {
     pedsCount: rows.filter((r) => r.k !== 3).length,
     regions,
     sidoOrder: order,
-    holidays: readJson(P.holi, []),
+    holidays: state.holidays && state.holidays.length ? state.holidays : readJson(P.holi, []),
+    pharmCount: state.pharmCount || 0,
+    pharmAt: state.pharmAt || null,
     source: '건강보험심사평가원 병원정보서비스·의료기관별상세정보서비스',
   };
   writeJson(path.join(P.outDir, 'hospitals.json'), rows);

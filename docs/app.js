@@ -197,7 +197,7 @@
     c.addEventListener('click', function () {
       c.classList.toggle('on');
       var g = c.parentNode.dataset.for;
-      if (g === 'region') loadRegion(); else if (g === 'near') loadNear(); else loadNight();
+      if (g === 'region') loadRegion(); else if (g === 'near') loadNear(); else if (g === 'pharm') loadPharm(); else loadNight();
     });
   });
 
@@ -350,6 +350,7 @@
           '<a class="btn ghost" href="' + naver + '">네이버지도</a>' +
           '<button class="btn ghost" id="fav-btn">' + (isFav ? '★ 즐겨찾기 해제' : '☆ 즐겨찾기') + '</button>' +
           (h.url ? '<a class="btn ghost wide" href="' + esc(/^https?:/.test(h.url) ? h.url : 'http://' + h.url) + '">병원 홈페이지</a>' : '') +
+          (hasPos ? '<button class="btn ghost wide" id="near-pharm-btn">℞ 이 병원 근처 약국</button>' : '') +
         '</div>' +
         (h.er ? '<div class="er-box"><b>야간 응급실 운영' + (h.erLevel ? ' · ' + esc(h.erLevel) : '') + '</b>외래 진료가 끝난 뒤에는 응급실로 받아요. 응급실 비용이 더 들고, 소아 전문의가 없을 수 있어요.' +
           (h.erTel ? '<a class="btn" href="tel:' + h.erTel.replace(/[^0-9]/g, '') + '">응급실 전화 ' + esc(h.erTel) + '</a>' : '') + '</div>' : '') +
@@ -357,6 +358,12 @@
         (extra.length ? '<div class="note">' + extra.join('<br>') + '</div>' : '') +
         (h.doctors ? '<div class="note">의사 수 ' + h.doctors + '명</div>' : '') +
         '<div class="note">진료시간·휴진은 병원 사정으로 바뀔 수 있어요. 방문 전 꼭 전화로 확인하세요.<br>자료: 건강보험심사평가원 병원정보서비스' + (d.src ? ' · 진료시간: ' + d.src : '') + (h.moonlight ? ' · 달빛어린이병원: 국립중앙의료원' : '') + '</div>';
+      if (hasPos) $('#near-pharm-btn').addEventListener('click', function () {
+        closeSheet();
+        phHosp = { lat: h.lat, lng: h.lng, name: h.name };
+        phMode = 'hosp';
+        show('pharm');
+      });
       $('#fav-btn').addEventListener('click', function () {
         var i = favs.indexOf(h.id);
         if (i >= 0) favs.splice(i, 1); else favs.push(h.id);
@@ -368,8 +375,95 @@
   }
   document.addEventListener('click', function (e) {
     var li = e.target.closest && e.target.closest('.item');
-    if (li) openDetail(li.dataset.id);
+    if (!li) return;
+    if (li.classList.contains('pitem')) { var v = phShown[Number(li.dataset.pi)]; if (v) openPharm(v); return; }
+    openDetail(li.dataset.id);
   });
+
+  // ───── 약국 ─────
+  var pharmPromise = null, phMode = 'me', phHosp = null, phShown = [];
+  function getPharm() {
+    if (!pharmPromise) {
+      pharmPromise = fetchJson(DATA_BASE + '/pharmacies.json?t=' + Math.floor(Date.now() / 3600000))
+        .catch(function () { return fetchJson('./data/pharmacies.json'); })
+        .catch(function (e) { pharmPromise = null; throw new Error('약국 자료를 받지 못했어요.'); });
+    }
+    return pharmPromise;
+  }
+  function pharmView(p, center, now, holis) {
+    var holi = !!holis[now.date], st = 'unknown';
+    if (p.h || p.hh) {
+      var t = span(holi ? (p.hh || '') : (p.h ? p.h[now.dow] : ''));
+      st = t && now.hhmm >= t[0] && now.hhmm < t[1] ? 'open' : 'closed';
+    }
+    var late = false;
+    if (p.h) for (var i = 0; i < 7; i++) { var x = span(p.h[i]); if (x && x[1] >= 2200) late = true; }
+    return { p: p, open: st, late: late, weekend: !!((p.h && p.h[0]) || p.hh),
+      distance: Math.round(distKm(center.lat, center.lng, p.y, p.x) * 100) / 100 };
+  }
+  function pharmTags(v) {
+    var t = [];
+    if (v.open === 'open') t.push('<span class="tag open">영업중</span>');
+    else if (v.open === 'closed') t.push('<span class="tag closed">영업 종료</span>');
+    if (v.late) t.push('<span class="tag night">밤 10시 이후</span>');
+    if (v.weekend) t.push('<span class="tag weekend">일·공휴일</span>');
+    return t.join('');
+  }
+  function loadPharm() {
+    var list = $('#ph-list'), cnt = $('#ph-count');
+    $('#ph-hosp-btn').hidden = !phHosp;
+    if (phHosp) $('#ph-hosp-btn').textContent = phHosp.name + ' 근처';
+    $$('#ph-mode button').forEach(function (b) { b.classList.toggle('on', b.dataset.m === phMode); });
+    loading(list, cnt);
+    var centerP = phMode === 'hosp' && phHosp ? Promise.resolve(phHosp) : locate();
+    Promise.all([centerP, getPharm(), getDB()]).then(function (r) {
+      var c = r[0], rows = r[1], db = r[2], now = kstNow();
+      var radius = Number($('#ph-radius').value), f = chipFilters('pharm');
+      var out = [];
+      rows.forEach(function (p) {
+        if (Math.abs(p.y - c.lat) > radius / 111 + 0.01 || Math.abs(p.x - c.lng) > radius / 88 + 0.01) return;
+        var v = pharmView(p, c, now, db.holis);
+        if (v.distance > radius) return;
+        if (f.openNow && v.open !== 'open') return;
+        if (f.late && !v.late) return;
+        if (f.weekend && !v.weekend) return;
+        out.push(v);
+      });
+      out.sort(function (a, b) { return a.distance - b.distance; });
+      phShown = out.slice(0, 100);
+      cnt.textContent = '총 ' + out.length + '곳' + (phMode === 'hosp' && phHosp ? ' · ' + phHosp.name + ' 기준' : '');
+      list.innerHTML = phShown.length ? phShown.map(function (v, i) {
+        return '<li class="item pitem" data-pi="' + i + '"><div class="name">' + esc(v.p.n) +
+          '<span class="dist">' + (v.distance < 1 ? Math.round(v.distance * 1000) + 'm' : v.distance.toFixed(1) + 'km') + '</span></div>' +
+          '<div class="addr">' + esc(v.p.a) + '</div><div class="meta">' + pharmTags(v) + '</div></li>';
+      }).join('') : '<li class="empty"><b>조건에 맞는 약국이 없어요</b>반경을 넓히거나 필터를 줄여 보세요.</li>';
+    }).catch(function (e) { fail(list, e); });
+  }
+  function openPharm(v) {
+    var p = v.p, keys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'], idx = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
+    var todayKey = DOW_KEY[new Date().getDay()];
+    var rows = p.h ? keys.map(function (k) {
+      var t = span(p.h[idx[k]]);
+      return '<tr class="' + (k === todayKey ? 'today' : '') + '"><td>' + DAY_LABEL[k] + '요일</td><td>' + (t ? fmt(t[0]) + ' ~ ' + fmt(t[1]) : '휴무') + '</td></tr>';
+    }).join('') : '<tr><td colspan="2">영업시간 정보가 없어요. 전화로 확인해 주세요.</td></tr>';
+    var ht = span(p.hh || '');
+    rows += '<tr><td>공휴일</td><td>' + (ht ? fmt(ht[0]) + ' ~ ' + fmt(ht[1]) : '휴무') + '</td></tr>';
+    var tel = (p.p || '').replace(/[^0-9]/g, '');
+    $('#sheet-body').innerHTML = '<h2>' + esc(p.n) + '</h2>' +
+      '<div class="meta" style="display:flex;gap:5px;flex-wrap:wrap">' + pharmTags(v) + '</div>' +
+      '<div class="addr">' + esc(p.a) + ' · ' + v.distance + 'km</div>' +
+      '<div class="actions">' +
+        (tel ? '<a class="btn" href="tel:' + tel + '">📞 전화하기</a>' : '<span class="btn ghost">전화번호 없음</span>') +
+        '<a class="btn" href="https://map.kakao.com/link/to/' + encodeURIComponent(p.n) + ',' + p.y + ',' + p.x + '">카카오맵 길찾기</a>' +
+      '</div>' +
+      '<div class="sub-h">영업시간</div><table class="hours">' + rows + '</table>' +
+      '<div class="note">영업시간은 바뀔 수 있어요. 방문 전 전화로 확인하세요.<br>자료: 국립중앙의료원 전국 약국 정보</div>';
+    $('#sheet').hidden = false; $('#sheet-bg').hidden = false;
+  }
+  $$('#ph-mode button').forEach(function (b) {
+    b.addEventListener('click', function () { phMode = b.dataset.m; loadPharm(); });
+  });
+  $('#ph-radius').addEventListener('change', function () { loadPharm(); });
 
   // ───── 탭 전환 ─────
   var current = 'region', loaded = {};
@@ -381,6 +475,7 @@
     if (tab === 'near') { if (!loaded.near) { loaded.near = 1; loadNear(); } else if (map) setTimeout(function () { map.invalidateSize(); }, 50); }
     if (tab === 'night' && !loaded.night) { loaded.night = 1; loadNight(); }
     if (tab === 'fav') loadFav();
+    if (tab === 'pharm') loadPharm();
   }
   $$('.bottom button').forEach(function (b) { b.addEventListener('click', function () { show(b.dataset.tab); }); });
   // 안드로이드 뒤로가기: 시트가 열려 있으면 닫기
@@ -422,7 +517,7 @@
   // 진료시간 자료가 아직 없으면 시간 관련 버튼을 숨기고 안내
   getDB().then(function (db) {
     if (db.meta.withHours) return;
-    $$('.chip[data-f=openNow], .chip[data-f=night], .chip[data-f=weekend]').forEach(function (c) { c.classList.remove('on'); c.hidden = true; });
+    $$('.chips:not([data-for=pharm]) .chip[data-f=openNow], .chip[data-f=night], .chips:not([data-for=pharm]) .chip[data-f=weekend]').forEach(function (c) { c.classList.remove('on'); c.hidden = true; });
     $$('.panel').forEach(function (p) {
       if (p.querySelector('.chips')) p.insertAdjacentHTML('beforeend', '<div class="hint" style="margin:0">진료시간 자료를 준비 중이에요. 지금은 위치·연락처만 볼 수 있어요.</div>');
     });
