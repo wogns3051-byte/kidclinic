@@ -14,9 +14,9 @@ const CFG = {
   key: (process.env.HIRA_SERVICE_KEY || '').trim(),
   // 주소가 바뀌면 GitHub Settings > Secrets and variables > Actions > Variables 에서 같은 이름으로 덮어쓸 수 있음
   listUrl: (process.env.HIRA_LIST_URL || '').trim() || 'https://apis.data.go.kr/B551182/hospInfoServicev2/getHospBasisList',
-  detailUrl: (process.env.HIRA_DETAIL_URL || '').trim() || 'https://apis.data.go.kr/B551182/MadmDtlInfoService2.7/getDtlInfo2.7',
+  detailUrl: (process.env.HIRA_DETAIL_URL || '').trim() || 'https://apis.data.go.kr/B551182/MadmDtlInfoService2.8/getDtlInfo2.8',
   deptCode: process.env.DEPT_CODE || '11', // 11 = 소아청소년과
-  detailPerRun: Number(process.env.DETAIL_DAILY_LIMIT || 900),
+  detailPerRun: Number(process.env.DETAIL_DAILY_LIMIT || 9000), // 심평원 일일 한도 10,000건
   detailMaxAgeDays: Number(process.env.DETAIL_MAX_AGE_DAYS || 30),
   root: process.env.KIDCLINIC_ROOT || ROOT,
 };
@@ -35,6 +35,7 @@ const SIDO = [
   ['390000', '제주'],
 ];
 const PEDS_NAME = /소아|아동|어린이|키즈|kids|베이비|baby/i;
+const isPeds = (h) => (PEDS_NAME.test(h.name) || /상급종합|종합병원|^병원$/.test(h.type) ? 1 : 0);
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 function readJson(f, d) { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (e) { return d; } }
@@ -109,7 +110,7 @@ function parseDetail(d) {
   });
   const holi = d.noTrmtHoli || '';
   return {
-    hours, // [일,월,화,수,목,금,토] "0900-1800" 또는 ""
+    hours: hours.some(Boolean) ? hours : null, // 시간이 하나도 없으면 '모름'으로 (전부 휴진으로 잘못 보이지 않게) // [일,월,화,수,목,금,토] "0900-1800" 또는 ""
     lunch: d.lunchWeek || '', lunchSat: d.lunchSat || '',
     sunNote: d.noTrmtSun || '', holiNote: holi,
     holidayOpen: !!holi && !/휴진|휴무|없음/.test(holi),
@@ -167,22 +168,30 @@ async function main() {
   const maxAge = CFG.detailMaxAgeDays * 86400000;
   const targets = Object.values(state.items)
     .filter((h) => !h.detail || Date.now() - Date.parse(h.detail.at) > maxAge)
-    .sort((a, b) => (a.detail ? Date.parse(a.detail.at) : 0) - (b.detail ? Date.parse(b.detail.at) : 0))
+    // 소아과 전문·병원급 먼저, 그다음 오래된 순
+    .sort((a, b) => (isPeds(b) - isPeds(a)) || ((a.detail ? Date.parse(a.detail.at) : 0) - (b.detail ? Date.parse(b.detail.at) : 0)))
     .slice(0, CFG.detailPerRun);
-  let n = 0;
-  for (const h of targets) {
-    try {
-      const r = await callApi(CFG.detailUrl, { ykiho: h.id, pageNo: 1, numOfRows: 1 }, 2);
-      h.detail = r.items[0] ? parseDetail(r.items[0]) : { hours: null, at: new Date().toISOString() };
-      n++;
-    } catch (e) {
-      if (e.fatal) { console.error('상세 조회 중단: ' + e.message); break; }
-      console.error(`상세 실패 ${h.name}: ${e.message}`);
+  let n = 0, stop = false, done = 0, loggedKeys = false;
+  const worker = async () => {
+    while (!stop && targets.length) {
+      const h = targets.shift();
+      try {
+        const r = await callApi(CFG.detailUrl, { ykiho: h.id, pageNo: 1, numOfRows: 1 }, 2);
+        if (r.items[0] && !loggedKeys) { loggedKeys = true; console.log('  (응답 항목 예시: ' + Object.keys(r.items[0]).join(', ') + ')'); }
+        h.detail = r.items[0] ? parseDetail(r.items[0]) : { hours: null, at: new Date().toISOString() };
+        n++;
+      } catch (e) {
+        if (e.fatal) { if (!stop) console.error('상세 조회 중단: ' + e.message); stop = true; break; }
+        console.error(`상세 실패 ${h.name}: ${e.message}`);
+      }
+      if (++done % 500 === 0) { console.log(`  진료시간 ${done}곳 조회…`); writeJson(P.state, state, true); }
     }
-  }
+  };
+  await Promise.all([1, 2, 3, 4].map(worker)); // 4곳씩 동시에
   const all = Object.values(state.items);
   const withHours = all.filter((h) => h.detail && h.detail.hours).length;
-  console.log(`진료시간 이번에 ${n}곳 갱신 / 전체 ${all.length}곳 중 ${withHours}곳 보유`);
+  const peds = all.filter(isPeds);
+  console.log(`진료시간 이번에 ${n}곳 갱신 / 전체 ${all.length}곳 중 ${withHours}곳 보유 (소아과·병원급 ${peds.length}곳 중 ${peds.filter((h) => h.detail && h.detail.hours).length}곳)`);
   writeJson(P.state, state, true);
 
   // 3) 앱용 파일

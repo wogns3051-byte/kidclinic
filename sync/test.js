@@ -73,7 +73,7 @@ const mock = http.createServer((req, res) => {
   console.log = () => {}; console.error = () => {};
   await s.main();
   console.log = log;
-  ok(detailCalls - before === 1 && out().length === 2, '상세 서비스 없음(12) → 즉시 중단, 목록은 저장');
+  ok(detailCalls - before <= 4 && out().length === 2, '상세 서비스 없음(12) → 즉시 중단, 목록은 저장');
   console.log(`\n${pass}건 통과`);
   mock.close(); fs.rmSync(root, { recursive: true, force: true });
 })().catch((e) => { console.error('실패:', e); process.exit(1); });
