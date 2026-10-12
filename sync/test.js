@@ -16,7 +16,7 @@ const H = [
 const xml = (items, total, code = '00') => `<?xml version="1.0"?><response><header><resultCode>${code}</resultCode><resultMsg>OK</resultMsg></header><body><items>${
   items.map((o) => '<item>' + Object.entries(o).map(([k, v]) => `<${k}>${v}</${k}>`).join('') + '</item>').join('')
 }</items><totalCount>${total}</totalCount></body></response>`;
-let detailCalls = 0, failSeoul = false, brokenDetail = false;
+let detailCalls = 0, fullCalls = 0, failSeoul = false, brokenDetail = false;
 const mock = http.createServer((req, res) => {
   const q = new URL(req.url, 'http://x').searchParams;
   assert.strictEqual(q.get('serviceKey'), 'TESTKEY');
@@ -24,6 +24,26 @@ const mock = http.createServer((req, res) => {
     if (failSeoul && q.get('sidoCd') === '110000') { res.statusCode = 500; return res.end('err'); }
     const rows = H.filter((h) => h.sidoCd === q.get('sidoCd')).map(({ d, ...r }) => r);
     return res.end(xml(rows, rows.length));
+  }
+  if (req.url.startsWith('/nmc/getBabyListInfoInqire')) {
+    return res.end(xml([
+      { dutyName: '구미아동병원', dutyDivNam: '달빛어린이병원', wgs84Lat: '36.1191', wgs84Lon: '128.3441', dutyTime1s: '0900', dutyTime1c: '2300' },
+      { dutyName: '서울하늘소아과의원', dutyDivNam: '소아전문센터', wgs84Lat: '37.5001', wgs84Lon: '127.0301' },
+      { dutyName: '없는병원', dutyDivNam: '달빛어린이병원', wgs84Lat: '35.1', wgs84Lon: '129.0' },
+    ], 3));
+  }
+  if (req.url.startsWith('/er/getEgytListInfoInqire')) {
+    return res.end(xml([
+      { dutyName: '서울&하늘소아과의원', dutyEmclsName: '지역응급의료기관', dutyEryn: '1', dutyTel3: '02-119-0000', wgs84Lat: '37.5001', wgs84Lon: '127.0301' },
+      { dutyName: '구미아동병원', dutyEmclsName: '지역응급의료기관', dutyEryn: '2', wgs84Lat: '36.119', wgs84Lon: '128.344' },
+    ], 2));
+  }
+  if (req.url.startsWith('/nmc/getHsptlMdcncFullDown')) {
+    fullCalls++;
+    return res.end(xml([
+      { dutyName: '서울하늘소아과의원', wgs84Lat: '37.5002', wgs84Lon: '127.0302', dutyTime1s: '0900', dutyTime1c: '2030', dutyTime7s: '1000', dutyTime7c: '1400', dutyTime8s: '1000', dutyTime8c: '1300' },
+      { dutyName: '다른내과의원', wgs84Lat: '37.5002', wgs84Lon: '127.0302', dutyTime1s: '0900', dutyTime1c: '1800' },
+    ], 2));
   }
   detailCalls++;
   if (brokenDetail) { res.statusCode = 400; return res.end(xml([], 0, '12').replace('<resultMsg>OK</resultMsg>', '<resultMsg>해당 오픈API 서비스가 없거나 폐기됨</resultMsg>')); }
@@ -38,7 +58,7 @@ const mock = http.createServer((req, res) => {
   fs.mkdirSync(path.join(root, 'data'));
   fs.writeFileSync(path.join(root, 'data', 'moonlight.json'), JSON.stringify([{ _설명: 'x' }, { name: '구미아동병원', sido: '경북' }]));
   fs.writeFileSync(path.join(root, 'data', 'holidays.json'), '["2026-10-09"]');
-  Object.assign(process.env, { KIDCLINIC_ROOT: root, HIRA_SERVICE_KEY: 'TESTKEY', HIRA_LIST_URL: `http://127.0.0.1:${port}/list`, HIRA_DETAIL_URL: `http://127.0.0.1:${port}/detail`, DETAIL_DAILY_LIMIT: '2' });
+  Object.assign(process.env, { KIDCLINIC_ROOT: root, HIRA_SERVICE_KEY: 'TESTKEY', HIRA_LIST_URL: `http://127.0.0.1:${port}/list`, HIRA_DETAIL_URL: `http://127.0.0.1:${port}/detail`, DETAIL_DAILY_LIMIT: '2', NMC_BASE_URL: `http://127.0.0.1:${port}/nmc`, NMC_ER_BASE_URL: `http://127.0.0.1:${port}/er` });
   const s = require('./sync.js');
   let pass = 0; const ok = (c, m) => { assert.ok(c, m); pass++; console.log('  ✓ ' + m); };
   const out = () => JSON.parse(fs.readFileSync(path.join(root, 'docs', 'data', 'hospitals.json'), 'utf8'));
@@ -59,6 +79,14 @@ const mock = http.createServer((req, res) => {
   ok(a2.h[1] === '0900-1800' && !a2.ho, '3자리 시간 보정·공휴일 휴진');
   ok(a1.er === 1 && a1.et === '054-000-9999' && !a2.er, '야간 응급실 표시·전화');
   ok(a1.x === 128.113123, '좌표 6자리로 축소');
+  const b1 = out().find((r) => r.i === 'B1');
+  ok(b1.h && b1.hs === 'n' && b1.h[1] === '0900-2030' && b1.h[0] === '1000-1400', '심평원에 없는 진료시간을 국립중앙의료원으로 채움');
+  ok(b1.hh === '1000-1300' && b1.ho === 1 && /공휴일 10:00~13:00/.test(b1.hn), '공휴일 진료시간');
+  ok(b1.m === 2 && a2.m === 1, '달빛어린이병원·소아전문센터 구분');
+  ok(fullCalls === 1, '전국 진료시간은 7일에 한 번만 받음');
+  ok(b1.er === 1 && b1.el === '지역응급의료기관' && b1.et === '02-119-0000', '지정 응급의료기관·응급실 전화');
+  ok(!a2.er, '응급실 운영 안 함(2)은 제외');
+  ok(!a1.hs && a1.h[1] === '0900-2100', '심평원 진료시간이 있으면 그대로 사용');
   failSeoul = true; H.splice(1, 1);
   console.log = () => {}; console.error = () => {};
   await s.main();

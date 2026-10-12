@@ -212,7 +212,11 @@ async function main() {
   console.log(`진료시간 이번에 ${n}곳 갱신 / 전체 ${all.length}곳 중 ${withHours}곳 보유 (소아과·병원급 ${peds.length}곳 중 ${peds.filter((h) => h.detail && h.detail.hours).length}곳)`);
   writeJson(P.state, state, true);
 
-  // 3) 앱용 파일
+  // 3) 국립중앙의료원 보충 (달빛어린이병원, 심평원에 없는 진료시간)
+  await require('./nmc.js').supplement(state, callApi);
+  writeJson(P.state, state, true);
+
+  // 4) 앱용 파일
   buildOutputs(state);
 }
 
@@ -233,14 +237,15 @@ function buildOutputs(state) {
     if (h.lat != null) { o.y = h.lat; o.x = h.lng; }
     if (h.doctors) o.dr = h.doctors;
     if (h.url) o.u = h.url;
-    if (isMoon(h)) o.m = 1;
+    if (h.moon) o.m = h.moon; else if (isMoon(h)) o.m = 1; // 1=달빛어린이병원, 2=소아전문센터
     // 분류: 1=소아 전문(이름), 2=병원급(소아청소년과 있음), 3=일반 의원(진료과목에 소아청소년과만 등록)
     if (PEDS_NAME.test(h.name)) o.k = 1;
     else if (/상급종합|종합병원|^병원$/.test(h.type)) o.k = 2;
     else if (/요양병원|정신병원|치과|한방|한의원/.test(h.type)) continue;
     else o.k = 3;
-    const d = h.detail;
+    const d = h.detail, nm = h.nmc;
     if (d && d.erNight) { o.er = 1; if (d.erTel) o.et = d.erTel; }
+    if (h.erInfo) { o.er = 1; if (h.erInfo.tel) o.et = h.erInfo.tel; if (h.erInfo.level) o.el = h.erInfo.level; } // 국립중앙의료원 지정 응급실
     if (d && d.hours) {
       o.h = d.hours;
       if (d.holidayOpen) o.ho = 1;
@@ -248,6 +253,12 @@ function buildOutputs(state) {
       if (d.lunchSat) o.ls = d.lunchSat;
       if (d.holiNote) o.hn = d.holiNote;
       if (d.sunNote) o.sn = d.sunNote;
+    } else if (nm && nm.hours) {
+      o.h = nm.hours; o.hs = 'n'; // 국립중앙의료원 자료
+    }
+    if (nm && nm.holiday) {         // 공휴일 진료시간이 따로 있으면 그걸 씀
+      o.hh = nm.holiday; o.ho = 1;
+      if (!o.hn) o.hn = '공휴일 ' + nm.holiday.replace(/(\d\d)(\d\d)-(\d\d)(\d\d)/, '$1:$2~$3:$4') + ' 진료';
     }
     rows.push(o);
   }

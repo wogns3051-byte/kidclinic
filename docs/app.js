@@ -60,7 +60,7 @@
     if (!r.h) return 'unknown';
     var holi = !!holis[now.date];
     if (holi && !r.ho) return 'closed';
-    var t = span(r.h[holi ? 0 : now.dow]);
+    var t = span(holi ? (r.hh || r.h[0]) : r.h[now.dow]);
     if (!t) return 'closed';
     return now.hhmm >= t[0] && now.hhmm < t[1] ? 'open' : 'closed';
   }
@@ -75,13 +75,13 @@
     var reg = db.meta.regions[r.s] || { name: '', sggu: {} };
     var o = { id: r.i, name: r.n, type: r.t, sido: reg.name, sggu: reg.sggu[r.g] || '', addr: r.a, tel: r.p,
       lat: r.y == null ? null : r.y, lng: r.x == null ? null : r.x, doctors: r.dr || null,
-      open: openState(r, now, db.holis), night: isNight(r), weekend: isWeekend(r), moonlight: !!r.m, general: r.k === 3, er: !!r.er, erTel: r.et || '' };
+      open: openState(r, now, db.holis), night: isNight(r), weekend: isWeekend(r), moonlight: !!r.m, moonKind: r.m || 0, general: r.k === 3, er: !!r.er, erTel: r.et || '', erLevel: r.el || '' };
     if (lat != null && r.y != null) o.distance = Math.round(distKm(lat, lng, r.y, r.x) * 100) / 100;
     if (full) {
       o.url = r.u || '';
       var keys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'], hours = null;
       if (r.h) { hours = {}; keys.forEach(function (k, i) { hours[k] = span(r.h[i]); }); }
-      o.detail = r.h ? { hours: hours, lunch: r.l || '', lunchSat: r.ls || '', holiNote: r.hn || '', sunNote: r.sn || '' } : null;
+      o.detail = r.h ? { hours: hours, lunch: r.l || '', lunchSat: r.ls || '', holiNote: r.hn || '', sunNote: r.sn || '', src: r.hs === 'n' ? '국립중앙의료원' : '' } : null;
     }
     return o;
   }
@@ -163,7 +163,7 @@
     var t = [];
     if (h.open === 'open') t.push('<span class="tag open">진료중</span>');
     else if (h.open === 'closed') t.push('<span class="tag closed">진료 종료</span>');
-    if (h.moonlight) t.push('<span class="tag moon">달빛어린이병원</span>');
+    if (h.moonlight) t.push('<span class="tag moon">' + (h.moonKind === 2 ? '소아전문센터' : '달빛어린이병원') + '</span>');
     if (h.night) t.push('<span class="tag night">평일 야간</span>');
     if (h.er) t.push('<span class="tag er">야간 응급실</span>');
     if (h.weekend) t.push('<span class="tag weekend">일·공휴일</span>');
@@ -351,12 +351,12 @@
           '<button class="btn ghost" id="fav-btn">' + (isFav ? '★ 즐겨찾기 해제' : '☆ 즐겨찾기') + '</button>' +
           (h.url ? '<a class="btn ghost wide" href="' + esc(/^https?:/.test(h.url) ? h.url : 'http://' + h.url) + '">병원 홈페이지</a>' : '') +
         '</div>' +
-        (h.er ? '<div class="er-box"><b>야간 응급실 운영</b>외래 진료가 끝난 뒤에는 응급실로 받아요. 응급실 비용이 더 들고, 소아 전문의가 없을 수 있어요.' +
+        (h.er ? '<div class="er-box"><b>야간 응급실 운영' + (h.erLevel ? ' · ' + esc(h.erLevel) : '') + '</b>외래 진료가 끝난 뒤에는 응급실로 받아요. 응급실 비용이 더 들고, 소아 전문의가 없을 수 있어요.' +
           (h.erTel ? '<a class="btn" href="tel:' + h.erTel.replace(/[^0-9]/g, '') + '">응급실 전화 ' + esc(h.erTel) + '</a>' : '') + '</div>' : '') +
         '<div class="sub-h">외래 진료시간</div><table class="hours">' + rows + '</table>' +
         (extra.length ? '<div class="note">' + extra.join('<br>') + '</div>' : '') +
         (h.doctors ? '<div class="note">의사 수 ' + h.doctors + '명</div>' : '') +
-        '<div class="note">진료시간·휴진은 병원 사정으로 바뀔 수 있어요. 방문 전 꼭 전화로 확인하세요.<br>자료: 건강보험심사평가원 병원정보서비스</div>';
+        '<div class="note">진료시간·휴진은 병원 사정으로 바뀔 수 있어요. 방문 전 꼭 전화로 확인하세요.<br>자료: 건강보험심사평가원 병원정보서비스' + (d.src ? ' · 진료시간: ' + d.src : '') + (h.moonlight ? ' · 달빛어린이병원: 국립중앙의료원' : '') + '</div>';
       $('#fav-btn').addEventListener('click', function () {
         var i = favs.indexOf(h.id);
         if (i >= 0) favs.splice(i, 1); else favs.push(h.id);
