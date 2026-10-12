@@ -75,7 +75,7 @@
     var reg = db.meta.regions[r.s] || { name: '', sggu: {} };
     var o = { id: r.i, name: r.n, type: r.t, sido: reg.name, sggu: reg.sggu[r.g] || '', addr: r.a, tel: r.p,
       lat: r.y == null ? null : r.y, lng: r.x == null ? null : r.x, doctors: r.dr || null,
-      open: openState(r, now, db.holis), night: isNight(r), weekend: isWeekend(r), moonlight: !!r.m };
+      open: openState(r, now, db.holis), night: isNight(r), weekend: isWeekend(r), moonlight: !!r.m, general: r.k === 3 };
     if (lat != null && r.y != null) o.distance = Math.round(distKm(lat, lng, r.y, r.x) * 100) / 100;
     if (full) {
       o.url = r.u || '';
@@ -90,10 +90,10 @@
     return getDB().then(function (db) {
       var now = kstNow();
       var lat = q.lat != null && q.lat !== '' ? Number(q.lat) : null, lng = lat != null ? Number(q.lng) : null;
-      if (path === '/health') return { hospitals: db.meta.count, withHours: db.meta.withHours, listUpdatedAt: db.meta.updatedAt };
+      if (path === '/health') return { hospitals: db.meta.pedsCount || db.meta.count, withHours: db.meta.withHours, listUpdatedAt: db.meta.updatedAt };
       if (path === '/regions') {
         var counts = {}, sg = {};
-        db.rows.forEach(function (r) { counts[r.s] = (counts[r.s] || 0) + 1; sg[r.g] = (sg[r.g] || 0) + 1; });
+        db.rows.forEach(function (r) { if (r.k === 3) return; counts[r.s] = (counts[r.s] || 0) + 1; sg[r.g] = (sg[r.g] || 0) + 1; });
         var order = db.meta.sidoOrder || Object.keys(db.meta.regions);
         return { regions: order.filter(function (c) { return db.meta.regions[c]; }).map(function (c) {
           var reg = db.meta.regions[c];
@@ -114,6 +114,7 @@
       var radius = q.radius ? Number(q.radius) : null;
       var out = [];
       db.rows.forEach(function (r) {
+        if (r.k === 3 && q.general !== '1' && !ids) return;
         if (q.sido && r.s !== q.sido) return;
         if (q.sggu && r.g !== q.sggu) return;
         if (kw && (r.n + r.a).replace(/\s/g, '').indexOf(kw) < 0) return;
@@ -164,7 +165,8 @@
     if (h.moonlight) t.push('<span class="tag moon">달빛어린이병원</span>');
     if (h.night) t.push('<span class="tag night">평일 야간</span>');
     if (h.weekend) t.push('<span class="tag weekend">일·공휴일</span>');
-    if (h.type) t.push('<span class="tag">' + esc(h.type) + '</span>');
+    if (h.general) t.push('<span class="tag">일반 의원·소아 진료</span>');
+    else if (h.type) t.push('<span class="tag">' + esc(h.type) + '</span>');
     return t.join('');
   }
   function card(h) {

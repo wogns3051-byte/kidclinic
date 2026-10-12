@@ -34,6 +34,7 @@ const SIDO = [
   ['350000', '전북'], ['360000', '전남'], ['370000', '경북'], ['380000', '경남'],
   ['390000', '제주'],
 ];
+const PEDS_NAME = /소아|아동|어린이|키즈|kids|베이비|baby/i;
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 function readJson(f, d) { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (e) { return d; } }
@@ -206,6 +207,11 @@ function buildOutputs(state) {
     if (h.doctors) o.dr = h.doctors;
     if (h.url) o.u = h.url;
     if (isMoon(h)) o.m = 1;
+    // 분류: 1=소아 전문(이름), 2=병원급(소아청소년과 있음), 3=일반 의원(진료과목에 소아청소년과만 등록)
+    if (PEDS_NAME.test(h.name)) o.k = 1;
+    else if (/상급종합|종합병원|^병원$/.test(h.type)) o.k = 2;
+    else if (/요양병원|정신병원|치과|한방|한의원/.test(h.type)) continue;
+    else o.k = 3;
     const d = h.detail;
     if (d && d.hours) {
       o.h = d.hours;
@@ -221,6 +227,7 @@ function buildOutputs(state) {
     updatedAt: state.listUpdatedAt,
     count: rows.length,
     withHours: rows.filter((r) => r.h).length,
+    pedsCount: rows.filter((r) => r.k !== 3).length,
     regions,
     sidoOrder: order,
     holidays: readJson(P.holi, []),
