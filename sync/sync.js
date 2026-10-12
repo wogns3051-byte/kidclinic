@@ -67,12 +67,21 @@ function tagValue(xml, tag) {
   const m = new RegExp('<' + tag + '>([\\s\\S]*?)</' + tag + '>').exec(xml);
   return m ? decodeXml(m[1]) : '';
 }
+// 심평원은 초당 요청 수를 제한함(오류 23 / HTTP 429). 요청 사이 간격을 두고, 걸리면 쉬었다가 다시.
+const GAP_MS = Number(process.env.API_GAP_MS || 250);
+let lastCall = 0;
+async function throttle() {
+  const wait = lastCall + GAP_MS - Date.now();
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+  lastCall = Date.now();
+}
 async function callApi(base, params, tries = 3) {
   // 인증키는 포털의 "Encoding" 키를 그대로 붙인다 (다시 인코딩하면 오류)
   const url = base + '?serviceKey=' + CFG.key + '&' + Object.entries(params).map(([k, v]) => k + '=' + encodeURIComponent(v)).join('&');
-  let lastErr;
+  let lastErr, limited = 0;
   for (let i = 0; i < tries; i++) {
     try {
+      await throttle();
       const ctl = new AbortController();
       const t = setTimeout(() => ctl.abort(), 30000);
       const res = await fetch(url, { headers: { Accept: '*/*' }, signal: ctl.signal });
@@ -81,6 +90,11 @@ async function callApi(base, params, tries = 3) {
       const code = tagValue(body, 'resultCode') || tagValue(body, 'returnReasonCode');
       if (!res.ok || (code && code !== '00')) {
         const msg = tagValue(body, 'resultMsg') || tagValue(body, 'returnAuthMsg') || body.slice(0, 200);
+        if ((code === '23' || res.status === 429) && limited < 8) {
+          limited++; i--; // 횟수에 안 셈
+          await new Promise((r) => setTimeout(r, 1000 * limited));
+          continue;
+        }
         const err = new Error(`API 오류 HTTP ${res.status} ${code} ${msg}`);
         // 인증키 미등록(30)·기한만료(31)·호출한도 초과(22) 는 다시 해도 소용없으므로 즉시 중단
         // 서비스 없음(12)도 주소 문제라 반복해도 같은 결과
@@ -187,7 +201,7 @@ async function main() {
       if (++done % 500 === 0) { console.log(`  진료시간 ${done}곳 조회…`); writeJson(P.state, state, true); }
     }
   };
-  await Promise.all([1, 2, 3, 4].map(worker)); // 4곳씩 동시에
+  await worker(); // 한 곳씩 차례로 (초당 제한 때문)
   const all = Object.values(state.items);
   const withHours = all.filter((h) => h.detail && h.detail.hours).length;
   const peds = all.filter(isPeds);
