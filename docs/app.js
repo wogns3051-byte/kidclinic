@@ -389,6 +389,32 @@
     if (lastRegion.sido) { $('#sido').value = lastRegion.sido; fillSggu($('#sido'), $('#sggu')); $('#sggu').value = lastRegion.sggu || ''; }
     loadRegion();
   }).catch(function (e) { fail($('#region-list'), e); });
+  // ───── 홈 화면 설치 안내 ─────
+  (function () {
+    var standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+    if (standalone || window.Capacitor || load('installDismissed', false)) return;
+    var box = $('#install'), btn = $('#install-btn'), deferred = null;
+    var ua = navigator.userAgent;
+    var isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferred = e; box.hidden = false; });
+    if (isIOS) {
+      $('#install-text').innerHTML = /CriOS|FxiOS|KAKAOTALK|NAVER/i.test(ua)
+        ? '<b>Safari로 열어 주세요</b>Safari에서 공유 → 홈 화면에 추가'
+        : '<b>홈 화면에 추가하면 앱처럼 써요</b>아래 공유 버튼(□↑) → 홈 화면에 추가';
+      btn.hidden = true; box.hidden = false;
+    }
+    btn.addEventListener('click', function () {
+      if (!deferred) return;
+      deferred.prompt();
+      deferred.userChoice.then(function () { deferred = null; box.hidden = true; });
+    });
+    $('#install-x').addEventListener('click', function () { box.hidden = true; save('installDismissed', true); });
+    window.addEventListener('appinstalled', function () { box.hidden = true; toast('설치됐어요. 홈 화면에서 열어 보세요'); });
+  })();
+  if ('serviceWorker' in navigator && !window.Capacitor && location.protocol === 'https:') {
+    navigator.serviceWorker.register('sw.js').catch(function () {});
+  }
+
   // 진료시간 자료가 아직 없으면 시간 관련 버튼을 숨기고 안내
   getDB().then(function (db) {
     if (db.meta.withHours) return;

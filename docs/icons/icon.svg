@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#2f6b5e"/>
+  <!-- 아이 얼굴 + 십자 -->
+  <circle cx="256" cy="270" r="128" fill="#fff8ee"/>
+  <path d="M206 150c10-40 50-58 82-46 18 7 30 22 28 40-20-14-48-14-66 2-14 12-30 14-44 4z" fill="#ffd59e"/>
+  <circle cx="212" cy="270" r="13" fill="#2f6b5e"/>
+  <circle cx="300" cy="270" r="13" fill="#2f6b5e"/>
+  <path d="M220 318q36 30 72 0" stroke="#2f6b5e" stroke-width="12" fill="none" stroke-linecap="round"/>
+  <circle cx="186" cy="304" r="16" fill="#f4b6a0" opacity=".7"/>
+  <circle cx="326" cy="304" r="16" fill="#f4b6a0" opacity=".7"/>
+  <rect x="352" y="104" width="76" height="76" rx="18" fill="#e07a3f"/>
+  <path d="M390 120v44M368 142h44" stroke="#fff" stroke-width="14" stroke-linecap="round"/>
+</svg>

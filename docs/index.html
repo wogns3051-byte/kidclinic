@@ -5,15 +5,29 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#2f6b5e">
 <title>우리아이 소아과</title>
+<meta name="description" content="전국 소아청소년과·야간·휴일 진료 병원 찾기">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="우리아이 소아과">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <header class="top">
-  <div class="brand"><span class="logo" aria-hidden="true">●</span> 우리아이 소아과</div>
+  <div class="brand"><img class="logo-img" src="icons/icon-192.png" alt=""> 우리아이 소아과</div>
   <div class="sub" id="updated"></div>
 </header>
 
+<div class="install" id="install" hidden>
+  <img src="icons/icon-192.png" alt="">
+  <div class="install-text" id="install-text"><b>홈 화면에 앱으로 설치</b>다음부터 아이콘 한 번으로 열려요</div>
+  <button class="btn" id="install-btn">설치</button>
+  <button class="install-x" id="install-x" aria-label="닫기">✕</button>
+</div>
 <main>
   <!-- 지역 -->
   <section class="tab" id="tab-region">
