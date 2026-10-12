@@ -1,6 +1,6 @@
 {
   "appId": "kr.kimcheon.kidclinic",
-  "appName": "우리아이 소아과",
+  "appName": "아이아플때",
   "webDir": "www",
   "android": { "allowMixedContent": false }
 }

@@ -1,4 +1,4 @@
-/* 우리아이 소아과 — 앱 화면 로직 (프레임워크 없음) */
+/* 아이아플때 — 앱 화면 로직 (프레임워크 없음) */
 (function () {
   'use strict';
   var PAGES_URL = (window.APP_CONFIG && window.APP_CONFIG.PAGES_URL || '').replace(/\/+$/, '');
@@ -153,7 +153,7 @@
       if (!navigator.geolocation) return reject(new Error('위치 기능을 쓸 수 없는 기기입니다.'));
       navigator.geolocation.getCurrentPosition(function (p) {
         myPos = { lat: p.coords.latitude, lng: p.coords.longitude }; resolve(myPos);
-      }, function () { reject(new Error('위치 권한을 허용해 주세요. (설정 > 앱 > 우리아이 소아과 > 권한)')); },
+      }, function () { reject(new Error('위치 권한을 허용해 주세요. (브라우저 주소창 옆 자물쇠 또는 휴대폰 설정 > 위치)')); },
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
     });
   }
