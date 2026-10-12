@@ -1,9 +1,11 @@
 name: 소아과 데이터 갱신
 
+# 심평원 API 가 해외(GitHub) 접속을 막아서 자동 실행은 끔. 갱신은 내 PC 의 작업 스케줄러가 담당.
+# (나중에 접속이 풀리면 아래 schedule 두 줄 앞의 # 를 지우면 다시 자동 실행됨)
 on:
-  schedule:
-    - cron: '7 19 * * *'   # 매일 한국시간 새벽 4시 7분
-  workflow_dispatch:        # Actions 탭에서 "Run workflow" 로 바로 실행
+  # schedule:
+  #   - cron: '7 19 * * *'
+  workflow_dispatch:
 
 permissions:
   contents: write

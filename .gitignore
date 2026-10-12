@@ -2,3 +2,4 @@ node_modules/
 app/android/
 app/www/
 .env
+sync-log.txt
