@@ -3,6 +3,8 @@
   'use strict';
   var PAGES_URL = (window.APP_CONFIG && window.APP_CONFIG.PAGES_URL || '').replace(/\/+$/, '');
   var REPORT_URL = (window.APP_CONFIG && window.APP_CONFIG.REPORT_URL || '').trim();
+  var ER_BEDS_URL = (window.APP_CONFIG && window.APP_CONFIG.ER_BEDS_URL || 'https://www.e-gen.or.kr').trim();
+  function bedsLink(cls) { return '<a class="btn ' + (cls || 'ghost') + ' beds-btn" href="' + ER_BEDS_URL + '" target="_blank" rel="noopener">🛏 응급실 실시간 병상 보기 ↗</a>'; }
   // 휴대폰 앱(Capacitor) 안이면 GitHub Pages 에서, 웹으로 열면 같은 사이트의 data 폴더에서 받는다
   var DATA_BASE = window.Capacitor && PAGES_URL && PAGES_URL.indexOf('YOUR-GITHUB-ID') < 0 ? PAGES_URL + '/data' : './data';
   var $ = function (s) { return document.querySelector(s); };
@@ -385,7 +387,7 @@
           (hasPos ? '<button class="btn ghost wide" id="near-pharm-btn">℞ 이 병원 근처 약국</button>' : '') +
         '</div>' +
         (h.er ? '<div class="er-box"><b>야간 응급실 운영' + (h.erLevel ? ' · ' + esc(h.erLevel) : '') + '</b>외래 진료가 끝난 뒤에는 응급실로 받아요. 응급실 비용이 더 들고, 소아 전문의가 없을 수 있어요.' +
-          (h.erTel ? '<a class="btn" href="tel:' + h.erTel.replace(/[^0-9]/g, '') + '">응급실 전화 ' + esc(h.erTel) + '</a>' : '') + '</div>' : '') +
+          (h.erTel ? '<a class="btn" href="tel:' + h.erTel.replace(/[^0-9]/g, '') + '">응급실 전화 ' + esc(h.erTel) + '</a>' : '') + bedsLink('ghost') + '</div>' : '') +
         '<div class="sub-h">외래 진료시간</div><table class="hours">' + rows + '</table>' +
         (extra.length ? '<div class="note">' + extra.join('<br>') + '</div>' : '') +
         (h.doctors ? '<div class="note">의사 수 ' + h.doctors + '명</div>' : '') +
@@ -574,6 +576,7 @@
     if (lastRegion.sido) { $('#sido').value = lastRegion.sido; fillSggu($('#sido'), $('#sggu')); $('#sggu').value = lastRegion.sggu || ''; }
     loadRegion();
   }).catch(function (e) { fail($('#region-list'), e); });
+  if ($('#beds-top')) $('#beds-top').href = ER_BEDS_URL;
   // ───── 홈 화면 설치 안내 ─────
   (function () {
     var standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;

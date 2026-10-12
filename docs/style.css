@@ -172,3 +172,6 @@ select:disabled { opacity: .5; }
 .bn-who { font-size: 12.5px; color: var(--muted); }
 .bn-body { font-size: 13.5px; color: #3b4541; line-height: 1.55; }
 .bn-btn { height: 40px; display: flex; align-items: center; justify-content: center; text-decoration: none; margin-top: 4px; }
+.beds-row { margin: 8px 16px 0; }
+.beds-btn { display: flex; align-items: center; justify-content: center; text-decoration: none; height: 42px; width: 100%; }
+.er-box .beds-btn { background: #fff; color: var(--red); border: 1px solid #f4c7c1; }

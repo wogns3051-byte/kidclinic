@@ -6,4 +6,6 @@ window.APP_CONFIG = {
   // 예) 구글 설문지 미리 채우기 링크: 'https://docs.google.com/forms/d/e/....../viewform?usp=pp_url&entry.123456={name}'
   //     메일: 'mailto:내메일@example.com?subject=정보수정&body={name}'
   REPORT_URL: '',
+  // 응급실 실시간 병상 보기 버튼이 여는 주소 (응급의료포털 e-gen)
+  ER_BEDS_URL: 'https://www.e-gen.or.kr',
 };
