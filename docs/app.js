@@ -2,6 +2,7 @@
 (function () {
   'use strict';
   var PAGES_URL = (window.APP_CONFIG && window.APP_CONFIG.PAGES_URL || '').replace(/\/+$/, '');
+  var REPORT_URL = (window.APP_CONFIG && window.APP_CONFIG.REPORT_URL || '').trim();
   // 휴대폰 앱(Capacitor) 안이면 GitHub Pages 에서, 웹으로 열면 같은 사이트의 data 폴더에서 받는다
   var DATA_BASE = window.Capacitor && PAGES_URL && PAGES_URL.indexOf('YOUR-GITHUB-ID') < 0 ? PAGES_URL + '/data' : './data';
   var $ = function (s) { return document.querySelector(s); };
@@ -56,13 +57,27 @@
     return { date: d.toISOString().slice(0, 10), dow: d.getUTCDay(), hhmm: d.getUTCHours() * 100 + d.getUTCMinutes() };
   }
   function span(v) { if (!v) return null; var p = v.split('-'); return [Number(p[0]), Number(p[1])]; }
+  // 점심시간 글자("13:00~14:00", "12시30분~13시30분" 등)를 [1300,1400] 으로
+  function parseLunch(v) {
+    var q = /(\d{2})(\d{2})\s*[~\-–]\s*(\d{2})(\d{2})/.exec(v || '');
+    if (q) v = q[1] + ':' + q[2] + '~' + q[3] + ':' + q[4];
+    var m = /(\d{1,2})\s*(?:[:시]\s*(\d{2})?\s*분?)?\s*[~\-–]\s*(\d{1,2})\s*(?:[:시]\s*(\d{2})?\s*분?)?/.exec(v || '');
+    if (!m) return null;
+    var a = Number(m[1]) * 100 + Number(m[2] || 0), b = Number(m[3]) * 100 + Number(m[4] || 0);
+    return b > a && a >= 1000 && b <= 1600 ? [a, b] : null; // 엉뚱한 숫자는 무시
+  }
   function openState(r, now, holis) {
     if (!r.h) return 'unknown';
     var holi = !!holis[now.date];
     if (holi && !r.ho) return 'closed';
     var t = span(holi ? (r.hh || r.h[0]) : r.h[now.dow]);
     if (!t) return 'closed';
-    return now.hhmm >= t[0] && now.hhmm < t[1] ? 'open' : 'closed';
+    if (!(now.hhmm >= t[0] && now.hhmm < t[1])) return 'closed';
+    if (!holi && now.dow >= 1 && now.dow <= 6) {
+      var l = parseLunch(now.dow === 6 ? r.ls : r.l);
+      if (l && now.hhmm >= l[0] && now.hhmm < l[1]) return 'lunch';
+    }
+    return 'open';
   }
   function isNight(r) { if (!r.h) return false; for (var i = 1; i <= 5; i++) { var t = span(r.h[i]); if (t && t[1] >= 2000) return true; } return false; }
   function isWeekend(r) { return !!(r.h && (r.h[0] || r.ho)); }
@@ -134,7 +149,7 @@
         if (q.hospitalOnly === '1' && /의원$/.test(v.type)) return;
         out.push(v);
       });
-      var rank = function (o) { return o.open === 'open' ? 0 : o.open === 'unknown' ? 1 : 2; };
+      var rank = function (o) { return o.open === 'open' ? 0 : o.open === 'lunch' ? 1 : o.open === 'unknown' ? 2 : 3; };
       out.sort(function (a, b) {
         if (a.distance != null && b.distance != null) return a.distance - b.distance;
         return rank(a) - rank(b) || a.name.localeCompare(b.name, 'ko');
@@ -162,6 +177,7 @@
   function tags(h) {
     var t = [];
     if (h.open === 'open') t.push('<span class="tag open">진료중</span>');
+    else if (h.open === 'lunch') t.push('<span class="tag lunch">점심시간</span>');
     else if (h.open === 'closed') t.push('<span class="tag closed">진료 종료</span>');
     if (h.moonlight) t.push('<span class="tag moon">' + (h.moonKind === 2 ? '소아전문센터' : '달빛어린이병원') + '</span>');
     if (h.night) t.push('<span class="tag night">평일 야간</span>');
@@ -234,6 +250,22 @@
       $('#region-more').hidden = regionOffset + 50 >= d.total;
     }).catch(function (e) { fail(list, e); });
   }
+  // 내 위치로: 가장 가까운 병원의 시·도/시·군·구를 골라 준다
+  $('#locate-region').addEventListener('click', function () {
+    var btn = this; btn.disabled = true; btn.textContent = '찾는 중…';
+    Promise.all([locate(true), getDB()]).then(function (r) {
+      var pos = r[0], db = r[1], best = null, bd = 1e9;
+      db.rows.forEach(function (x) {
+        if (x.y == null) return;
+        var d = Math.pow(x.y - pos.lat, 2) + Math.pow((x.x - pos.lng) * 0.8, 2);
+        if (d < bd) { bd = d; best = x; }
+      });
+      if (!best) throw new Error('가까운 지역을 찾지 못했어요.');
+      $('#sido').value = best.s; fillSggu($('#sido'), $('#sggu')); $('#sggu').value = best.g;
+      loadRegion();
+    }).catch(function (e) { toast(e.message); })
+      .then(function () { btn.disabled = false; btn.textContent = '📍 내 위치로'; });
+  });
   $('#sido').addEventListener('change', function () { fillSggu($('#sido'), $('#sggu')); loadRegion(); });
   $('#sggu').addEventListener('change', function () { loadRegion(); });
   var kwTimer;
@@ -357,7 +389,13 @@
         '<div class="sub-h">외래 진료시간</div><table class="hours">' + rows + '</table>' +
         (extra.length ? '<div class="note">' + extra.join('<br>') + '</div>' : '') +
         (h.doctors ? '<div class="note">의사 수 ' + h.doctors + '명</div>' : '') +
+        (REPORT_URL ? '<button class="btn ghost report" id="report-btn">정보가 달라요</button>' : '') +
         '<div class="note">진료시간·휴진은 병원 사정으로 바뀔 수 있어요. 방문 전 꼭 전화로 확인하세요.<br>자료: 건강보험심사평가원 병원정보서비스' + (d.src ? ' · 진료시간: ' + d.src : '') + (h.moonlight ? ' · 달빛어린이병원: 국립중앙의료원' : '') + '</div>';
+      var rb = $('#report-btn');
+      if (rb) rb.addEventListener('click', function () {
+        var u = REPORT_URL.replace('{name}', encodeURIComponent(h.name)).replace('{addr}', encodeURIComponent(h.addr || ''));
+        location.href = u;
+      });
       if (hasPos) $('#near-pharm-btn').addEventListener('click', function () {
         closeSheet();
         phHosp = { lat: h.lat, lng: h.lng, name: h.name };
@@ -522,6 +560,13 @@
       if (p.querySelector('.chips')) p.insertAdjacentHTML('beforeend', '<div class="hint" style="margin:0">진료시간 자료를 준비 중이에요. 지금은 위치·연락처만 볼 수 있어요.</div>');
     });
     if (loaded.night) loadNight();
+  }).catch(function () {});
+  getDB().then(function (db) {
+    var d = db.meta.updatedAt ? db.meta.updatedAt.slice(0, 10).replace(/-/g, '.') : '';
+    $('#foot-info').innerHTML =
+      '<b>위치 정보</b> 내 위치는 가까운 병원·약국을 찾는 데만 휴대폰 안에서 쓰고, 어디에도 보내거나 저장하지 않아요.<br>' +
+      '<b>자료</b> 건강보험심사평가원, 국립중앙의료원, 한국천문연구원 공공데이터' + (d ? ' (' + d + ' 갱신)' : '') + '<br>' +
+      '<b>주의</b> 진료시간은 바뀔 수 있으니 방문 전 꼭 전화로 확인하세요. 위급하면 119.';
   }).catch(function () {});
   api('/health').then(function (h) {
     if (h.listUpdatedAt) $('#updated').textContent = '전국 ' + h.hospitals.toLocaleString() + '곳 · ' + h.listUpdatedAt.slice(5, 10).replace('-', '/') + ' 갱신';

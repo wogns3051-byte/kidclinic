@@ -50,6 +50,7 @@
         <select id="sido" aria-label="시도"><option value="">시·도 선택</option></select>
         <select id="sggu" aria-label="시군구" disabled><option value="">시·군·구 전체</option></select>
       </div>
+      <button class="btn ghost" id="locate-region">📍 내 위치로</button>
       <input id="kw" type="search" placeholder="병원 이름·주소 검색" autocomplete="off">
       <div class="chips" data-for="region">
         <button class="chip" data-f="openNow">지금 진료중</button>
@@ -64,6 +65,7 @@
     <div class="count" id="region-count"></div>
     <ul class="list" id="region-list"></ul>
     <button class="more" id="region-more" hidden>더 보기</button>
+    <div class="foot" id="foot-info"></div>
   </section>
 
   <!-- 내 주변 -->
