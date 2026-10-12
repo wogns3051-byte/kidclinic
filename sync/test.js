@@ -8,7 +8,7 @@ const assert = require('assert');
 
 const H = [
   { ykiho: 'A1', yadmNm: '김천튼튼소아청소년과의원', clCdNm: '의원', sidoCd: '370000', sidoCdNm: '경북', sgguCd: '370100', sgguCdNm: '김천시', addr: '경북 김천시 A로 1', telno: '054-000-0001', XPos: '128.1131234567', YPos: '36.139', drTotCnt: '2',
-    d: { trmtMonStart: '0900', trmtMonEnd: '2100', trmtSunStart: '1000', trmtSunEnd: '1700', noTrmtHoli: '정상진료', lunchWeek: '13:00~14:00' } },
+    d: { trmtMonStart: '0900', trmtMonEnd: '2100', trmtSunStart: '1000', trmtSunEnd: '1700', noTrmtHoli: '정상진료', lunchWeek: '13:00~14:00', emyNgtYn: 'Y', emyNgtTelNo1: '054-000-9999' } },
   { ykiho: 'A2', yadmNm: '구미아동병원', clCdNm: '병원', sidoCd: '370000', sidoCdNm: '경북', sgguCd: '370200', sgguCdNm: '구미시', addr: '경북 구미시 B로 2', telno: '054-000-0002', XPos: '128.344', YPos: '36.119',
     d: { trmtMonStart: '900', trmtMonEnd: '1800', noTrmtHoli: '휴진' } },
   { ykiho: 'B1', yadmNm: '서울&amp;하늘소아과의원', clCdNm: '의원', sidoCd: '110000', sidoCdNm: '서울', sgguCd: '110001', sgguCdNm: '강남구', addr: '서울 강남구 C로 3', telno: '02-000-0003', XPos: '127.03', YPos: '37.5', d: null },
@@ -57,6 +57,7 @@ const mock = http.createServer((req, res) => {
   const a1 = out().find((r) => r.i === 'A1'), a2 = out().find((r) => r.i === 'A2');
   ok(a1.h[1] === '0900-2100' && a1.h[0] === '1000-1700' && a1.ho === 1 && a1.l, '진료시간 누적·휴일진료');
   ok(a2.h[1] === '0900-1800' && !a2.ho, '3자리 시간 보정·공휴일 휴진');
+  ok(a1.er === 1 && a1.et === '054-000-9999' && !a2.er, '야간 응급실 표시·전화');
   ok(a1.x === 128.113123, '좌표 6자리로 축소');
   failSeoul = true; H.splice(1, 1);
   console.log = () => {}; console.error = () => {};

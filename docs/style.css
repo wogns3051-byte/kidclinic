@@ -149,3 +149,7 @@ select:disabled { opacity: .5; }
 .install-text b { display: block; color: var(--ink); font-size: 14px; }
 .install .btn { height: 36px; padding: 0 14px; flex: none; }
 .install-x { border: 0; background: none; color: var(--muted); font-size: 15px; width: 28px; height: 28px; flex: none; }
+.tag.er { background: #fdecea; color: var(--red); }
+.er-box { margin: 4px 0 8px; padding: 11px 13px; border-radius: 12px; background: #fdecea; border: 1px solid #f4c7c1; color: #7d241b; font-size: 13.5px; display: grid; gap: 6px; }
+.er-box b { color: var(--red); font-size: 14px; }
+.er-box .btn { background: var(--red); text-decoration: none; display: flex; align-items: center; justify-content: center; }

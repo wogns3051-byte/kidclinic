@@ -75,7 +75,7 @@
     var reg = db.meta.regions[r.s] || { name: '', sggu: {} };
     var o = { id: r.i, name: r.n, type: r.t, sido: reg.name, sggu: reg.sggu[r.g] || '', addr: r.a, tel: r.p,
       lat: r.y == null ? null : r.y, lng: r.x == null ? null : r.x, doctors: r.dr || null,
-      open: openState(r, now, db.holis), night: isNight(r), weekend: isWeekend(r), moonlight: !!r.m, general: r.k === 3 };
+      open: openState(r, now, db.holis), night: isNight(r), weekend: isWeekend(r), moonlight: !!r.m, general: r.k === 3, er: !!r.er, erTel: r.et || '' };
     if (lat != null && r.y != null) o.distance = Math.round(distKm(lat, lng, r.y, r.x) * 100) / 100;
     if (full) {
       o.url = r.u || '';
@@ -130,6 +130,7 @@
         if (q.night === '1' && !v.night) return;
         if (q.weekend === '1' && !v.weekend) return;
         if (q.moonlight === '1' && !v.moonlight) return;
+        if (q.er === '1' && !v.er) return;
         if (q.hospitalOnly === '1' && /의원$/.test(v.type)) return;
         out.push(v);
       });
@@ -164,6 +165,7 @@
     else if (h.open === 'closed') t.push('<span class="tag closed">진료 종료</span>');
     if (h.moonlight) t.push('<span class="tag moon">달빛어린이병원</span>');
     if (h.night) t.push('<span class="tag night">평일 야간</span>');
+    if (h.er) t.push('<span class="tag er">야간 응급실</span>');
     if (h.weekend) t.push('<span class="tag weekend">일·공휴일</span>');
     if (h.general) t.push('<span class="tag">일반 의원·소아 진료</span>');
     else if (h.type) t.push('<span class="tag">' + esc(h.type) + '</span>');
@@ -289,7 +291,7 @@
   function loadNight() {
     var list = $('#night-list'), cnt = $('#night-count');
     var f = chipFilters('night');
-    if (!f.openNow && !f.moonlight && !f.night && !f.weekend) f = { night: '', weekend: '' }; // 아무것도 안 고르면 전체
+    if (!f.openNow && !f.moonlight && !f.night && !f.weekend && !f.er) f = { night: '', weekend: '' }; // 아무것도 안 고르면 전체
     loading(list, cnt);
     var req;
     if (nightMode === 'near') {
@@ -349,7 +351,9 @@
           '<button class="btn ghost" id="fav-btn">' + (isFav ? '★ 즐겨찾기 해제' : '☆ 즐겨찾기') + '</button>' +
           (h.url ? '<a class="btn ghost wide" href="' + esc(/^https?:/.test(h.url) ? h.url : 'http://' + h.url) + '">병원 홈페이지</a>' : '') +
         '</div>' +
-        '<div class="sub-h">진료시간</div><table class="hours">' + rows + '</table>' +
+        (h.er ? '<div class="er-box"><b>야간 응급실 운영</b>외래 진료가 끝난 뒤에는 응급실로 받아요. 응급실 비용이 더 들고, 소아 전문의가 없을 수 있어요.' +
+          (h.erTel ? '<a class="btn" href="tel:' + h.erTel.replace(/[^0-9]/g, '') + '">응급실 전화 ' + esc(h.erTel) + '</a>' : '') + '</div>' : '') +
+        '<div class="sub-h">외래 진료시간</div><table class="hours">' + rows + '</table>' +
         (extra.length ? '<div class="note">' + extra.join('<br>') + '</div>' : '') +
         (h.doctors ? '<div class="note">의사 수 ' + h.doctors + '명</div>' : '') +
         '<div class="note">진료시간·휴진은 병원 사정으로 바뀔 수 있어요. 방문 전 꼭 전화로 확인하세요.<br>자료: 건강보험심사평가원 병원정보서비스</div>';

@@ -128,6 +128,10 @@ function parseDetail(d) {
     lunch: d.lunchWeek || '', lunchSat: d.lunchSat || '',
     sunNote: d.noTrmtSun || '', holiNote: holi,
     holidayOpen: !!holi && !/휴진|휴무|없음/.test(holi),
+    // 응급실 운영 (외래가 끝난 뒤 소아 환자를 받는 곳 — 외래 야간 진료와는 다름)
+    erDay: d.emyDayYn === 'Y', erNight: d.emyNgtYn === 'Y',
+    erTel: d.emyNgtTelNo1 || d.emyDayTelNo1 || '',
+    v: 2,
     at: new Date().toISOString(),
   };
 }
@@ -181,7 +185,7 @@ async function main() {
   // 2) 진료시간 (오래된 것부터, 상한만큼)
   const maxAge = CFG.detailMaxAgeDays * 86400000;
   const targets = Object.values(state.items)
-    .filter((h) => !h.detail || Date.now() - Date.parse(h.detail.at) > maxAge)
+    .filter((h) => !h.detail || h.detail.v !== 2 || Date.now() - Date.parse(h.detail.at) > maxAge) // v2: 응급실 항목 추가로 한 번 다시 받음
     // 소아과 전문·병원급 먼저, 그다음 오래된 순
     .sort((a, b) => (isPeds(b) - isPeds(a)) || ((a.detail ? Date.parse(a.detail.at) : 0) - (b.detail ? Date.parse(b.detail.at) : 0)))
     .slice(0, CFG.detailPerRun);
@@ -192,7 +196,7 @@ async function main() {
       try {
         const r = await callApi(CFG.detailUrl, { ykiho: h.id, pageNo: 1, numOfRows: 1 }, 2);
         if (r.items[0] && !loggedKeys) { loggedKeys = true; console.log('  (응답 항목 예시: ' + Object.keys(r.items[0]).join(', ') + ')'); }
-        h.detail = r.items[0] ? parseDetail(r.items[0]) : { hours: null, at: new Date().toISOString() };
+        h.detail = r.items[0] ? parseDetail(r.items[0]) : { hours: null, v: 2, at: new Date().toISOString() };
         n++;
       } catch (e) {
         if (e.fatal) { if (!stop) console.error('상세 조회 중단: ' + e.message); stop = true; break; }
@@ -236,6 +240,7 @@ function buildOutputs(state) {
     else if (/요양병원|정신병원|치과|한방|한의원/.test(h.type)) continue;
     else o.k = 3;
     const d = h.detail;
+    if (d && d.erNight) { o.er = 1; if (d.erTel) o.et = d.erTel; }
     if (d && d.hours) {
       o.h = d.hours;
       if (d.holidayOpen) o.ho = 1;
