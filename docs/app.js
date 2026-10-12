@@ -3,7 +3,7 @@
   'use strict';
   var PAGES_URL = (window.APP_CONFIG && window.APP_CONFIG.PAGES_URL || '').replace(/\/+$/, '');
   var REPORT_URL = (window.APP_CONFIG && window.APP_CONFIG.REPORT_URL || '').trim();
-  var ER_BEDS_URL = (window.APP_CONFIG && window.APP_CONFIG.ER_BEDS_URL || 'https://www.e-gen.or.kr').trim();
+  var ER_BEDS_URL = (window.APP_CONFIG && window.APP_CONFIG.ER_BEDS_URL || 'https://mediboard.nemc.or.kr/emergency_room_in_hand').trim();
   function bedsLink(cls) { return '<a class="btn ' + (cls || 'ghost') + ' beds-btn" href="' + ER_BEDS_URL + '" target="_blank" rel="noopener">🛏 응급실 실시간 병상 보기 ↗</a>'; }
   // 휴대폰 앱(Capacitor) 안이면 GitHub Pages 에서, 웹으로 열면 같은 사이트의 data 폴더에서 받는다
   var DATA_BASE = window.Capacitor && PAGES_URL && PAGES_URL.indexOf('YOUR-GITHUB-ID') < 0 ? PAGES_URL + '/data' : './data';
