@@ -389,6 +389,15 @@
     if (lastRegion.sido) { $('#sido').value = lastRegion.sido; fillSggu($('#sido'), $('#sggu')); $('#sggu').value = lastRegion.sggu || ''; }
     loadRegion();
   }).catch(function (e) { fail($('#region-list'), e); });
+  // 진료시간 자료가 아직 없으면 시간 관련 버튼을 숨기고 안내
+  getDB().then(function (db) {
+    if (db.meta.withHours) return;
+    $$('.chip[data-f=openNow], .chip[data-f=night], .chip[data-f=weekend]').forEach(function (c) { c.classList.remove('on'); c.hidden = true; });
+    $$('.panel').forEach(function (p) {
+      if (p.querySelector('.chips')) p.insertAdjacentHTML('beforeend', '<div class="hint" style="margin:0">진료시간 자료를 준비 중이에요. 지금은 위치·연락처만 볼 수 있어요.</div>');
+    });
+    if (loaded.night) loadNight();
+  }).catch(function () {});
   api('/health').then(function (h) {
     if (h.listUpdatedAt) $('#updated').textContent = '전국 ' + h.hospitals.toLocaleString() + '곳 · ' + h.listUpdatedAt.slice(5, 10).replace('-', '/') + ' 갱신';
   }).catch(function () {});
