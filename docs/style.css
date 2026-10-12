@@ -160,3 +160,15 @@ select:disabled { opacity: .5; }
 .foot { margin: 8px 16px 20px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); line-height: 1.6; }
 .foot b { color: var(--ink); font-weight: 700; margin-right: 4px; }
 .public-note { padding: 7px 16px; background: var(--brand-soft); color: var(--brand); font-size: 12.5px; font-weight: 600; text-align: center; line-height: 1.4; }
+.bottom button { font-size: 11px; letter-spacing: -0.3px; }
+.bottom .ic { font-size: 18px; }
+.bn-notice { margin: 12px 16px 0; padding: 10px 12px; border-radius: 12px; background: var(--warm-soft); color: #8a4a1e; font-size: 12.5px; line-height: 1.5; }
+.bn-notice span { opacity: .75; }
+.bn-h { margin: 18px 16px 2px; font-size: 16px; }
+.bn-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; display: grid; gap: 6px; list-style: none; }
+#local-benefit { padding: 4px 12px 16px; }
+.bn-title { font-weight: 700; font-size: 15px; }
+.bn-big { font-weight: 800; font-size: 19px; color: var(--brand); letter-spacing: -0.3px; }
+.bn-who { font-size: 12.5px; color: var(--muted); }
+.bn-body { font-size: 13.5px; color: #3b4541; line-height: 1.55; }
+.bn-btn { height: 40px; display: flex; align-items: center; justify-content: center; text-decoration: none; margin-top: 4px; }

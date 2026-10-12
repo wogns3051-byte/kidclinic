@@ -503,6 +503,53 @@
   });
   $('#ph-radius').addEventListener('change', function () { loadPharm(); });
 
+  // ───── 혜택 ─────
+  var benefitLoaded = false;
+  function loadBenefit() {
+    if (benefitLoaded) { renderLocal(); return; }
+    fetchJson(DATA_BASE + '/benefits.json?t=' + Math.floor(Date.now() / 86400000))
+      .catch(function () { return fetchJson('./data/benefits.json'); })
+      .then(function (b) {
+        benefitLoaded = true;
+        var html = '<div class="bn-notice">' + esc(b.notice) + ' <span>(' + esc(b.checked.replace('-', '.')) + ' 기준)</span></div>';
+        b.sections.forEach(function (sec) {
+          html += '<h3 class="bn-h">' + esc(sec.title) + '</h3><ul class="list">';
+          sec.items.forEach(function (it, i) {
+            html += '<li class="bn-card"><div class="bn-title">' + esc(it.title) + '</div>' +
+              (it.big ? '<div class="bn-big">' + esc(it.big) + '</div>' : '') +
+              (it.who ? '<div class="bn-who">대상 · ' + esc(it.who) + '</div>' : '') +
+              '<div class="bn-body">' + esc(it.body) + '</div>' +
+              (it.link ? '<a class="btn ghost bn-btn" href="' + esc(it.link.url) + '" target="_blank" rel="noopener">' + esc(it.link.label) + ' ↗</a>' : '') +
+              (it.action ? '<button class="btn bn-btn" data-go-tab="' + esc(it.action.tab) + '" data-go-filter="' + esc(it.action.filter || '') + '">' + esc(it.action.label) + '</button>' : '') +
+              '</li>';
+          });
+          html += '</ul>';
+        });
+        html += '<h3 class="bn-h">우리 지역 혜택</h3><div id="local-benefit"></div>';
+        $('#benefit-body').innerHTML = html;
+        renderLocal();
+      }).catch(function () { $('#benefit-body').innerHTML = '<div class="empty"><b>혜택 정보를 불러오지 못했어요</b>인터넷 연결을 확인해 주세요.</div>'; });
+  }
+  function renderLocal() {
+    var box = $('#local-benefit'); if (!box) return;
+    var r = load('region', { sido: '', sggu: '' });
+    var name = '';
+    regions.forEach(function (x) { if (x.code === r.sido) { name = x.name; x.sggu.forEach(function (g) { if (g.code === r.sggu) name += ' ' + g.name; }); } });
+    box.innerHTML = '<div class="bn-card"><div class="bn-title">' + (name ? esc(name) + ' 출산·육아 지원' : '지역을 먼저 골라 주세요') + '</div>' +
+      '<div class="bn-body">' + (name
+        ? '시·군·구마다 출산축하금, 산후조리비, 영유아 의료비 같은 지원이 따로 있어요. 자동으로 모아 보여 드리는 기능을 준비하고 있어요. 지금은 복지로에서 지역을 골라 확인할 수 있어요.'
+        : '지역 탭에서 시·도와 시·군·구를 고르거나 📍 내 위치로를 누르면, 그 지역 혜택을 여기서 보여 드려요.') + '</div>' +
+      '<a class="btn ghost bn-btn" href="https://www.bokjiro.go.kr" target="_blank" rel="noopener">복지로에서 지역 혜택 찾기 ↗</a></div>';
+  }
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-go-tab]');
+    if (!b) return;
+    var tab = b.dataset.goTab, f = b.dataset.goFilter;
+    if (f) $$('.chips[data-for="' + tab + '"] .chip').forEach(function (c) { c.classList.toggle('on', c.dataset.f === f); });
+    loaded[tab] = 0;
+    show(tab);
+  });
+
   // ───── 탭 전환 ─────
   var current = 'region', loaded = {};
   function show(tab) {
@@ -514,6 +561,7 @@
     if (tab === 'night' && !loaded.night) { loaded.night = 1; loadNight(); }
     if (tab === 'fav') loadFav();
     if (tab === 'pharm') loadPharm();
+    if (tab === 'benefit') loadBenefit();
   }
   $$('.bottom button').forEach(function (b) { b.addEventListener('click', function () { show(b.dataset.tab); }); });
   // 안드로이드 뒤로가기: 시트가 열려 있으면 닫기
