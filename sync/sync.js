@@ -12,8 +12,9 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const CFG = {
   key: (process.env.HIRA_SERVICE_KEY || '').trim(),
-  listUrl: process.env.HIRA_LIST_URL || 'https://apis.data.go.kr/B551182/hospInfoServicev2/getHospBasisList',
-  detailUrl: process.env.HIRA_DETAIL_URL || 'https://apis.data.go.kr/B551182/MadmDtlInfoService2.7/getDtlInfo2.7',
+  // 주소가 바뀌면 GitHub Settings > Secrets and variables > Actions > Variables 에서 같은 이름으로 덮어쓸 수 있음
+  listUrl: (process.env.HIRA_LIST_URL || '').trim() || 'https://apis.data.go.kr/B551182/hospInfoServicev2/getHospBasisList',
+  detailUrl: (process.env.HIRA_DETAIL_URL || '').trim() || 'https://apis.data.go.kr/B551182/MadmDtlInfoService2.7/getDtlInfo2.7',
   deptCode: process.env.DEPT_CODE || '11', // 11 = 소아청소년과
   detailPerRun: Number(process.env.DETAIL_DAILY_LIMIT || 900),
   detailMaxAgeDays: Number(process.env.DETAIL_MAX_AGE_DAYS || 30),
@@ -80,7 +81,8 @@ async function callApi(base, params, tries = 3) {
         const msg = tagValue(body, 'resultMsg') || tagValue(body, 'returnAuthMsg') || body.slice(0, 200);
         const err = new Error(`API 오류 HTTP ${res.status} ${code} ${msg}`);
         // 인증키 미등록(30)·기한만료(31)·호출한도 초과(22) 는 다시 해도 소용없으므로 즉시 중단
-        if (['22', '30', '31'].includes(code) || /SERVICE_KEY|LIMITED_NUMBER|TRAFFIC/.test(msg)) { err.fatal = true; throw err; }
+        // 서비스 없음(12)도 주소 문제라 반복해도 같은 결과
+        if (['12', '22', '30', '31'].includes(code) || /SERVICE_KEY|LIMITED_NUMBER|TRAFFIC|서비스가 없거나/.test(msg)) { err.fatal = true; throw err; }
         throw err;
       }
       return { items: parseItems(body), total: Number(tagValue(body, 'totalCount') || 0) };
@@ -154,6 +156,7 @@ async function main() {
     }
   }
   if (!listOk) throw new Error('모든 시도의 목록 조회에 실패했습니다.');
+  console.log(`목록 합계: ${seen.size}곳`);
   let removed = 0;
   for (const id of Object.keys(state.items)) if (!seen.has(id)) { delete state.items[id]; removed++; }
   state.listUpdatedAt = new Date().toISOString();

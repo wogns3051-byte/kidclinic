@@ -16,7 +16,7 @@ const H = [
 const xml = (items, total, code = '00') => `<?xml version="1.0"?><response><header><resultCode>${code}</resultCode><resultMsg>OK</resultMsg></header><body><items>${
   items.map((o) => '<item>' + Object.entries(o).map(([k, v]) => `<${k}>${v}</${k}>`).join('') + '</item>').join('')
 }</items><totalCount>${total}</totalCount></body></response>`;
-let detailCalls = 0, failSeoul = false;
+let detailCalls = 0, failSeoul = false, brokenDetail = false;
 const mock = http.createServer((req, res) => {
   const q = new URL(req.url, 'http://x').searchParams;
   assert.strictEqual(q.get('serviceKey'), 'TESTKEY');
@@ -26,6 +26,7 @@ const mock = http.createServer((req, res) => {
     return res.end(xml(rows, rows.length));
   }
   detailCalls++;
+  if (brokenDetail) { res.statusCode = 400; return res.end(xml([], 0, '12').replace('<resultMsg>OK</resultMsg>', '<resultMsg>해당 오픈API 서비스가 없거나 폐기됨</resultMsg>')); }
   const h = H.find((x) => x.ykiho === q.get('ykiho'));
   res.end(xml(h && h.d ? [h.d] : [], h && h.d ? 1 : 0));
 });
@@ -63,6 +64,16 @@ const mock = http.createServer((req, res) => {
   console.log = log;
   ok(out().some((r) => r.i === 'B1'), '한 시도 조회 실패 시 이전 자료 유지');
   ok(!out().some((r) => r.i === 'A2'), '목록에서 빠진 병원 제외');
+  // 상세 API 가 '서비스 없음(12)' 이면 첫 호출에서 바로 멈추고 목록은 저장
+  const before = detailCalls; brokenDetail = true;
+  for (const h of Object.values(JSON.parse(fs.readFileSync(path.join(root, 'state', 'hospitals.json'), 'utf8')).items)) delete h.detail;
+  const st = JSON.parse(fs.readFileSync(path.join(root, 'state', 'hospitals.json'), 'utf8'));
+  for (const h of Object.values(st.items)) delete h.detail;
+  fs.writeFileSync(path.join(root, 'state', 'hospitals.json'), JSON.stringify(st));
+  console.log = () => {}; console.error = () => {};
+  await s.main();
+  console.log = log;
+  ok(detailCalls - before === 1 && out().length === 2, '상세 서비스 없음(12) → 즉시 중단, 목록은 저장');
   console.log(`\n${pass}건 통과`);
   mock.close(); fs.rmSync(root, { recursive: true, force: true });
 })().catch((e) => { console.error('실패:', e); process.exit(1); });

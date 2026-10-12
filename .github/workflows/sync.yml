@@ -28,6 +28,8 @@ jobs:
         env:
           HIRA_SERVICE_KEY: ${{ secrets.HIRA_SERVICE_KEY }}
           DETAIL_DAILY_LIMIT: ${{ vars.DETAIL_DAILY_LIMIT || '900' }}
+          HIRA_LIST_URL: ${{ vars.HIRA_LIST_URL }}
+          HIRA_DETAIL_URL: ${{ vars.HIRA_DETAIL_URL }}
       - name: 저장
         run: |
           git config user.name "github-actions[bot]"
