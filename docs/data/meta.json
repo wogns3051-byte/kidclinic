@@ -1,7 +1,8 @@
 {
- "updatedAt": "2026-10-12T03:48:05.862Z",
- "count": 15365,
+ "updatedAt": "2026-10-12T03:56:31.942Z",
+ "count": 15119,
  "withHours": 0,
+ "pedsCount": 2974,
  "regions": {
   "110000": {
    "name": "서울",
