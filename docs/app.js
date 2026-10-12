@@ -253,7 +253,7 @@
     }).catch(function (e) { fail(list, e); });
   }
   // 내 위치로: 가장 가까운 병원의 시·도/시·군·구를 골라 준다
-  $('#locate-region').addEventListener('click', function () {
+  if ($('#locate-region')) $('#locate-region').addEventListener('click', function () {
     var btn = this; btn.disabled = true; btn.textContent = '찾는 중…';
     Promise.all([locate(true), getDB()]).then(function (r) {
       var pos = r[0], db = r[1], best = null, bd = 1e9;
@@ -577,7 +577,7 @@
     loadRegion();
   }).catch(function (e) { fail($('#region-list'), e); });
   if ($('#beds-top')) $('#beds-top').href = ER_BEDS_URL;
-  $('#open-fav').addEventListener('click', function () { show('fav'); });
+  if ($('#open-fav')) $('#open-fav').addEventListener('click', function () { show('fav'); });
   // ───── 홈 화면 설치 안내 ─────
   (function () {
     var standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
