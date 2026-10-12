@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2f6b5e">
+<title>우리아이 소아과</title>
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo" aria-hidden="true">●</span> 우리아이 소아과</div>
+  <div class="sub" id="updated"></div>
+</header>
+
+<main>
+  <!-- 지역 -->
+  <section class="tab" id="tab-region">
+    <div class="panel">
+      <div class="row">
+        <select id="sido" aria-label="시도"><option value="">시·도 선택</option></select>
+        <select id="sggu" aria-label="시군구" disabled><option value="">시·군·구 전체</option></select>
+      </div>
+      <input id="kw" type="search" placeholder="병원 이름·주소 검색" autocomplete="off">
+      <div class="chips" data-for="region">
+        <button class="chip" data-f="openNow">지금 진료중</button>
+        <button class="chip" data-f="night">평일 야간</button>
+        <button class="chip" data-f="weekend">일·공휴일</button>
+        <button class="chip" data-f="hospitalOnly">병원급만</button>
+      </div>
+    </div>
+    <div class="count" id="region-count"></div>
+    <ul class="list" id="region-list"></ul>
+    <button class="more" id="region-more" hidden>더 보기</button>
+  </section>
+
+  <!-- 내 주변 -->
+  <section class="tab" id="tab-near" hidden>
+    <div id="map"></div>
+    <div class="panel">
+      <div class="row">
+        <select id="radius" aria-label="반경">
+          <option value="2">반경 2km</option><option value="5" selected>반경 5km</option>
+          <option value="10">반경 10km</option><option value="20">반경 20km</option>
+        </select>
+        <button class="btn ghost" id="relocate">내 위치 다시 찾기</button>
+      </div>
+      <div class="chips" data-for="near">
+        <button class="chip" data-f="openNow">지금 진료중</button>
+        <button class="chip" data-f="night">평일 야간</button>
+        <button class="chip" data-f="weekend">일·공휴일</button>
+      </div>
+    </div>
+    <div class="count" id="near-count"></div>
+    <ul class="list" id="near-list"></ul>
+  </section>
+
+  <!-- 야간·휴일 -->
+  <section class="tab" id="tab-night" hidden>
+    <div class="alert">아이가 숨쉬기 힘들어하거나, 경련·의식저하가 있으면 병원을 찾지 말고 <a href="tel:119"><b>119</b></a>에 바로 전화하세요.</div>
+    <div class="panel">
+      <div class="seg" id="night-mode">
+        <button class="on" data-m="near">내 주변 20km</button>
+        <button data-m="region">지역에서 찾기</button>
+      </div>
+      <div class="row" id="night-region" hidden>
+        <select id="nsido" aria-label="시도"><option value="">시·도 선택</option></select>
+        <select id="nsggu" aria-label="시군구" disabled><option value="">시·군·구 전체</option></select>
+      </div>
+      <div class="chips" data-for="night">
+        <button class="chip on" data-f="openNow">지금 진료중</button>
+        <button class="chip" data-f="moonlight">달빛어린이병원</button>
+        <button class="chip" data-f="night">평일 야간</button>
+        <button class="chip" data-f="weekend">일·공휴일</button>
+      </div>
+    </div>
+    <div class="count" id="night-count"></div>
+    <ul class="list" id="night-list"></ul>
+  </section>
+
+  <!-- 즐겨찾기 -->
+  <section class="tab" id="tab-fav" hidden>
+    <div class="count" id="fav-count"></div>
+    <ul class="list" id="fav-list"></ul>
+  </section>
+</main>
+
+<nav class="bottom" role="tablist">
+  <button class="on" data-tab="region"><span class="ic">▤</span>지역</button>
+  <button data-tab="near"><span class="ic">◎</span>내 주변</button>
+  <button data-tab="night"><span class="ic">☾</span>야간·휴일</button>
+  <button data-tab="fav"><span class="ic">★</span>즐겨찾기</button>
+</nav>
+
+<!-- 상세 -->
+<div class="sheet-bg" id="sheet-bg" hidden></div>
+<div class="sheet" id="sheet" hidden role="dialog" aria-modal="true">
+  <div class="grip"></div>
+  <button class="x" id="sheet-x" aria-label="닫기">✕</button>
+  <div id="sheet-body"></div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="vendor/leaflet/leaflet.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
