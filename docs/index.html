@@ -28,7 +28,7 @@
 <meta name="apple-mobile-web-app-title" content="아이아플때">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-<link rel="stylesheet" href="style.css?v=22">
+<link rel="stylesheet" href="style.css?v=23">
 </head>
 <body>
 <header class="top">
@@ -150,13 +150,15 @@
   <section class="tab" id="tab-benefit" hidden>
     <div class="panel">
       <div class="seg" id="kid-seg">
-        <button class="on" data-k="med">💊 해열제 기록</button>
-        <button data-k="card">🪪 응급 카드</button>
+        <button class="on" data-k="med">💊 해열제</button>
+        <button data-k="card">🪪 응급카드</button>
+        <button data-k="sched">📅 일정</button>
         <button data-k="bn">♡ 혜택</button>
       </div>
     </div>
     <div id="kid-med" class="kid-pane"></div>
     <div id="kid-card" class="kid-pane" hidden></div>
+    <div id="kid-sched" class="kid-pane" hidden></div>
     <div id="benefit-body" class="kid-pane" hidden><div class="spinner">불러오는 중…</div></div>
   </section>
 
@@ -188,8 +190,8 @@
 <div class="toast" id="toast" hidden></div>
 
 <script src="vendor/leaflet/leaflet.js"></script>
-<script src="config.js?v=22"></script>
-<script src="app.js?v=22"></script>
-<script src="kid.js?v=22"></script>
+<script src="config.js?v=23"></script>
+<script src="app.js?v=23"></script>
+<script src="kid.js?v=23"></script>
 </body>
 </html>

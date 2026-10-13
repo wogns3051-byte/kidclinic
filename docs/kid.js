@@ -74,7 +74,7 @@
       if (a.dataset.kidAdd === 'med') toast('생일을 응급 카드에 넣어 두면 나이에 맞는 안내가 나와요');
     }
   });
-  function render(where) { if (where === 'card') renderCard(); else renderMed(); }
+  function render(where) { if (where === 'card') renderCard(); else if (where === 'sched') renderSched(); else renderMed(); }
 
   // ───── 해열제 기록 ─────
   // 최소 간격·하루 최대 횟수는 국내 어린이용 해열제 설명서의 일반적인 기준. 제품마다 다를 수 있어 설명서가 우선.
@@ -251,13 +251,189 @@
     });
   }
 
+
+  // ───── 📅 예방접종·건강검진 일정 ─────
+  // 기준: 질병관리청 표준예방접종일정표(2026), 국민건강보험공단 영유아 건강검진·구강검진 시기.
+  // 일정이 바뀌면 아래 SCHED 만 고치면 된다. s/e = 시작·끝 (d:일, m:개월, y:세)
+  var SCHED_CHECKED = '2026.10';
+  var VAC = 'https://nip.kdca.go.kr', NHIS = 'https://www.nhis.or.kr';
+  var SCHED = [
+    { id: 'hepb1', c: 'vac', n: 'B형간염 1차', s: 'd0', e: 'd7', note: '출생 직후 (보통 출산한 병원에서 접종)' },
+    { id: 'bcg', c: 'vac', n: 'BCG(결핵)', s: 'd0', e: 'd28', note: '생후 4주 이내. 피내접종은 보건소 예약제인 곳이 많아요' },
+    { id: 'chk1', c: 'chk', n: '영유아 건강검진 1차', s: 'd14', e: 'd35' },
+    { id: 'hepb2', c: 'vac', n: 'B형간염 2차', s: 'm1', e: 'm2' },
+    { id: 'v2m', c: 'vac', n: '2개월 접종', s: 'm2', e: 'm3', note: 'DTaP·폴리오·Hib·폐렴구균·로타바이러스 1차' },
+    { id: 'v4m', c: 'vac', n: '4개월 접종', s: 'm4', e: 'm5', note: 'DTaP·폴리오·Hib·폐렴구균·로타바이러스 2차' },
+    { id: 'chk2', c: 'chk', n: '영유아 건강검진 2차', s: 'm4', e: 'm6' },
+    { id: 'v6m', c: 'vac', n: '6개월 접종', s: 'm6', e: 'm7', note: 'DTaP·Hib·폐렴구균 3차, B형간염 3차, 폴리오 3차(18개월까지 가능), 로타바이러스 3차(로타텍만)' },
+    { id: 'chk3', c: 'chk', n: '영유아 건강검진 3차', s: 'm9', e: 'm12' },
+    { id: 'v12m', c: 'vac', n: '12~15개월 접종', s: 'm12', e: 'm15', note: 'Hib·폐렴구균 추가, MMR 1차, 수두' },
+    { id: 'hepa1', c: 'vac', n: 'A형간염 1차', s: 'm12', e: 'm23', note: '2차는 1차 접종 6~12개월 뒤' },
+    { id: 'je12', c: 'vac', n: '일본뇌염 1·2차', s: 'm12', e: 'm24', note: '불활성화 백신 기준 (1·2차는 7~30일 간격). 생백신을 맞았다면 일정이 달라요' },
+    { id: 'dtap4', c: 'vac', n: 'DTaP 4차', s: 'm15', e: 'm19', note: '15~18개월' },
+    { id: 'hepa2', c: 'vac', n: 'A형간염 2차', s: 'm18', e: 'm36', note: '1차를 맞은 날로부터 6~12개월 뒤에 맞아요' },
+    { id: 'chk4', c: 'chk', n: '영유아 건강검진 4차', s: 'm18', e: 'm24' },
+    { id: 'oral1', c: 'oral', n: '영유아 구강검진 1차', s: 'm18', e: 'm29' },
+    { id: 'je3', c: 'vac', n: '일본뇌염 3차', s: 'm24', e: 'm36', note: '2차 접종 12개월 뒤 (불활성화 백신 기준)' },
+    { id: 'chk5', c: 'chk', n: '영유아 건강검진 5차', s: 'm30', e: 'm36' },
+    { id: 'oral2', c: 'oral', n: '영유아 구강검진 2차', s: 'm30', e: 'm41' },
+    { id: 'chk6', c: 'chk', n: '영유아 건강검진 6차', s: 'm42', e: 'm48' },
+    { id: 'oral3', c: 'oral', n: '영유아 구강검진 3차', s: 'm42', e: 'm53' },
+    { id: 'v4y', c: 'vac', n: '만 4~6세 접종', s: 'y4', e: 'y7', note: 'DTaP 5차, 폴리오 4차, MMR 2차' },
+    { id: 'chk7', c: 'chk', n: '영유아 건강검진 7차', s: 'm54', e: 'm60' },
+    { id: 'oral4', c: 'oral', n: '영유아 구강검진 4차', s: 'm54', e: 'm65' },
+    { id: 'je4', c: 'vac', n: '일본뇌염 4차', s: 'y6', e: 'y7', note: '만 6세 (불활성화 백신 기준)' },
+    { id: 'chk8', c: 'chk', n: '영유아 건강검진 8차', s: 'm66', e: 'm71' },
+    { id: 'v12y', c: 'vac', n: '만 12세 접종', s: 'y11', e: 'y13', note: 'Tdap/Td 6차, 일본뇌염 5차, HPV(대상 여부 확인)' }
+  ];
+  var CAT = { vac: { label: '예방접종', icon: '💉', link: VAC, linkName: '예방접종도우미' },
+              chk: { label: '건강검진', icon: '🩺', link: NHIS, linkName: '국민건강보험공단' },
+              oral: { label: '구강검진', icon: '🦷', link: NHIS, linkName: '국민건강보험공단' },
+              flu: { label: '예방접종', icon: '💉', link: VAC, linkName: '예방접종도우미' } };
+  function addSpan(birth, code) {
+    var b = new Date(birth + 'T00:00:00'), n = +code.slice(1), u = code[0];
+    if (u === 'd') return new Date(b.getTime() + n * 86400000);
+    var months = u === 'y' ? n * 12 : n;
+    var d = new Date(b.getFullYear(), b.getMonth() + months, b.getDate());
+    if (d.getDate() !== b.getDate()) d.setDate(0); // 31일생 등 월말 보정
+    return d;
+  }
+  function ymd(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function kdate(d) { return d.getFullYear() + '.' + (d.getMonth() + 1) + '.' + d.getDate(); }
+  function schedFor(kid) {
+    var list = SCHED.map(function (x) {
+      return { id: x.id, c: x.c, n: x.n, note: x.note || '', s: addSpan(kid.birth, x.s), e: addSpan(kid.birth, x.e) };
+    });
+    // 독감: 생후 6개월 ~ 만 13세, 매년 10월 (처음 맞는 해는 4주 간격 2회)
+    var from = addSpan(kid.birth, 'm6'), to = addSpan(kid.birth, 'y13'), y = from.getFullYear(), first = true;
+    for (; y <= to.getFullYear(); y++) {
+      var s = new Date(y, 9, 1), e = new Date(y, 11, 31);
+      if (e < from || s > to) continue;
+      if (s < from) s = from;
+      list.push({ id: 'flu' + y, c: 'flu', n: y + '년 어린이 독감 접종', s: s, e: e,
+        note: first ? '처음 맞는 해에는 4주 간격으로 2회 맞아요. 시작 날짜는 해마다 공지돼요' : '매년 1회. 시작 날짜는 해마다 공지돼요' });
+      first = false;
+    }
+    return list.sort(function (a, b) { return a.s - b.s; });
+  }
+  function done(kid) { return load('kiddone:' + kid.id, {}); }
+  function gcalLink(kid, x, who) {
+    var e1 = new Date(x.e.getTime() + 86400000);
+    var f = function (d) { return ymd(d).replace(/-/g, ''); };
+    return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent('[' + who + '] ' + x.n) +
+      '&dates=' + f(x.s) + '/' + f(e1) + '&details=' + encodeURIComponent((x.note ? x.note + '\n' : '') + '기간: ' + kdate(x.s) + ' ~ ' + kdate(x.e) + '\n확인: ' + CAT[x.c].link + '\n- 아이아플때');
+  }
+  var showAllSched = false;
+  function renderSched() {
+    var box = $('#kid-sched'); if (!box) return;
+    var kid = curKid();
+    if (!kid) {
+      box.innerHTML = '<div class="kid-empty"><b>예방접종·건강검진 일정</b>생년월일만 넣으면 국가예방접종과 영유아 건강검진 시기를 자동으로 계산하고, 휴대폰 캘린더에 넣어 알림을 받을 수 있어요.' +
+        '<button class="btn" data-kid-add="sched">+ 아이 추가</button></div>' + privNote('kid');
+      return;
+    }
+    if (!kid.birth) {
+      box.innerHTML = kidPicker(kid, 'sched') + '<div class="kid-empty"><b>생년월일이 필요해요</b>응급 카드에 ' + esc(kid.name) + '의 생년월일을 넣으면 일정을 계산해 드려요.' +
+        '<button class="btn" id="to-card">🪪 응급 카드에서 생년월일 넣기</button></div>' + privNote('kid');
+      $('#to-card').addEventListener('click', function () { editing = true; showPane('card'); });
+      return;
+    }
+    var all = schedFor(kid), dn = done(kid), today = new Date(); today.setHours(0, 0, 0, 0);
+    var soon = new Date(today.getTime() + 60 * 86400000);
+    var now = [], next = [], later = [], past = [];
+    all.forEach(function (x) {
+      if (dn[x.id]) past.push(x);
+      else if (x.e < today) past.push(x);
+      else if (x.s <= today) now.push(x);
+      else if (x.s <= soon) next.push(x);
+      else later.push(x);
+    });
+    var item = function (x, cls) {
+      var C = CAT[x.c], isDone = !!dn[x.id];
+      return '<li class="sc ' + cls + (isDone ? ' done' : '') + '">' +
+        '<label class="sc-chk"><input type="checkbox" data-done="' + x.id + '"' + (isDone ? ' checked' : '') + '><span></span></label>' +
+        '<div class="sc-body"><div class="sc-n">' + C.icon + ' ' + esc(x.n) + '</div>' +
+        '<div class="sc-d">' + kdate(x.s) + ' ~ ' + kdate(x.e) + (cls === 'now' ? ' <b>· 지금 할 때</b>' : cls === 'next' ? ' · ' + Math.ceil((x.s - today) / 86400000) + '일 뒤 시작' : cls === 'past' && !isDone ? ' <em>· 기간 지남 · 맞았다면 체크</em>' : '') + '</div>' +
+        (x.note ? '<div class="sc-note">' + esc(x.note) + '</div>' : '') +
+        '<div class="sc-links"><a href="' + C.link + '" target="_blank" rel="noopener">' + C.linkName + ' ↗</a>' +
+        (x.e >= today && !isDone ? ' · <a href="#" data-gcal="' + x.id + '">구글 캘린더에 추가</a>' : '') + '</div></div></li>';
+    };
+    var sec = function (title, arr, cls) { return arr.length ? '<h3 class="bn-h">' + title + '</h3><ul class="sc-list">' + arr.map(function (x) { return item(x, cls); }).join('') + '</ul>' : ''; };
+    box.innerHTML = kidPicker(kid, 'sched') +
+      '<div class="sc-head">' + esc(kid.name) + ' · ' + ageText(kid.birth) + '</div>' +
+      '<div class="cal-box"><button class="btn" id="ics-btn">📅 남은 일정 캘린더에 한 번에 넣기</button>' +
+      '<div class="cal-hint">아이폰·삼성 캘린더에 들어가고, 각 일정 시작 하루 전 아침 9시에 알림이 와요. 구글 캘린더는 아래 일정마다 "구글 캘린더에 추가"를 눌러 주세요.</div></div>' +
+      (function () {
+        var missed = past.filter(function (x) { return !dn[x.id] && x.c !== 'flu'; }).length;
+        return missed && !showAllSched ? '<button class="missed" id="missed-btn">⚠️ 기간이 지난 일정 ' + missed + '개가 체크되지 않았어요. 맞았는지 확인해 주세요 →</button>' : '';
+      })() +
+      (now.length || next.length ? '' : '<div class="kid-empty small">지금 할 일정이 없어요 🎉</div>') +
+      sec('지금 할 때', now, 'now') + sec('곧 시작 (60일 안)', next, 'next') +
+      (later.length ? (showAllSched ? sec('나중 일정', later, 'later') : '<button class="btn ghost more-sc" id="more-sc">나중 일정 ' + later.length + '개 더 보기</button>') : '') +
+      (past.length ? (showAllSched ? sec('지난 일정·완료', past.slice().reverse(), 'past') : '') : '') +
+      '<div class="note pad">체크(✓)는 맞았거나 받은 일정을 표시하는 용도예요. 실제 접종 기록은 <a href="' + VAC + '" target="_blank" rel="noopener">예방접종도우미</a>에서 확인하고, 그곳에서도 접종 알림을 받을 수 있어요.<br>기준: 질병관리청 표준예방접종일정(2026), 국민건강보험공단 영유아 검진 시기 (' + SCHED_CHECKED + ' 확인). 아이 상태에 따라 일정이 달라질 수 있으니 소아과와 상의하세요.</div>' +
+      privNote('kid') + '<div class="priv">🔒 캘린더에 넣으면 일정 제목에 적은 이름이 들어가고, 캘린더가 구글·삼성·애플 계정과 동기화되면 그곳에도 저장돼요. 넣기 전에 이름 대신 별명을 쓸 수 있어요.</div>';
+
+    $$('#kid-sched [data-done]').forEach(function (c) {
+      c.addEventListener('change', function () { var d2 = done(kid); if (c.checked) d2[c.dataset.done] = 1; else delete d2[c.dataset.done]; save('kiddone:' + kid.id, d2); renderSched(); });
+    });
+    var mb = $('#more-sc'); if (mb) mb.addEventListener('click', function () { showAllSched = true; renderSched(); });
+    var ms = $('#missed-btn'); if (ms) ms.addEventListener('click', function () { showAllSched = true; renderSched(); var h = $$('#kid-sched .bn-h'); if (h.length) h[h.length - 1].scrollIntoView({ behavior: 'smooth' }); });
+    $$('#kid-sched [data-gcal]').forEach(function (a) {
+      a.addEventListener('click', function (e) {
+        e.preventDefault();
+        var who = askCalName(kid); if (!who) return;
+        var x = all.filter(function (y) { return y.id === a.dataset.gcal; })[0];
+        window.open(gcalLink(kid, x, who), '_blank', 'noopener');
+      });
+    });
+    $('#ics-btn').addEventListener('click', function () {
+      var items = all.filter(function (x) { return !dn[x.id] && x.e >= today; });
+      if (!items.length) { toast('넣을 남은 일정이 없어요'); return; }
+      var who = askCalName(kid); if (!who) return;
+      downloadIcs(kid, items, who);
+    });
+  }
+  var calName = {};
+  function askCalName(kid) {
+    var v = prompt('캘린더 일정 제목에 들어갈 이름이에요.\n캘린더가 계정과 동기화되면 그곳에도 저장되니, 별명을 써도 좋아요.', calName[kid.id] || kid.name);
+    if (v === null) return '';
+    v = v.trim().slice(0, 12) || '아이';
+    calName[kid.id] = v;
+    return v;
+  }
+  function icsEsc(t) { return String(t).replace(/\\/g, '\\\\').replace(/;/g, '\;').replace(/,/g, '\\,').replace(/\n/g, '\\n'); }
+  function downloadIcs(kid, items, who) {
+    var f = function (d) { return ymd(d).replace(/-/g, ''); };
+    var stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
+    var lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//aiapulttae//schedule//KO', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:' + icsEsc(who + ' 접종·검진')];
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    items.forEach(function (x) {
+      var start = x.s < today ? today : x.s;
+      lines.push('BEGIN:VEVENT', 'UID:' + kid.id + '-' + x.id + '@aiapulttae', 'DTSTAMP:' + stamp,
+        'DTSTART;VALUE=DATE:' + f(start), 'DTEND;VALUE=DATE:' + f(new Date(x.e.getTime() + 86400000)),
+        'SUMMARY:' + icsEsc('[' + who + '] ' + CAT[x.c].icon + ' ' + x.n),
+        'DESCRIPTION:' + icsEsc((x.note ? x.note + '\n' : '') + '기간: ' + kdate(x.s) + ' ~ ' + kdate(x.e) + '\n확인: ' + CAT[x.c].link + '\n- 아이아플때'),
+        'TRANSP:TRANSPARENT');
+      if (x.s >= today) lines.push('BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + icsEsc(who + ' ' + x.n + ' 시작'), 'TRIGGER:-PT15H', 'END:VALARM');
+      lines.push('END:VEVENT');
+    });
+    lines.push('END:VCALENDAR');
+    var blob = new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+    var url = URL.createObjectURL(blob), a = document.createElement('a');
+    a.href = url; a.download = 'aiapulttae-' + (who.replace(/[^0-9a-zA-Z가-힣]/g, '') || 'kid') + '.ics';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
+    toast(items.length + '개 일정 파일을 만들었어요. 열어서 캘린더에 추가하세요');
+  }
+
   // ───── 우리아이 탭 안 전환 ─────
   var pane = load('kidPane', 'med');
   function showPane(k) {
     pane = k; save('kidPane', k);
     $$('#kid-seg button').forEach(function (b) { b.classList.toggle('on', b.dataset.k === k); });
-    $('#kid-med').hidden = k !== 'med'; $('#kid-card').hidden = k !== 'card'; $('#benefit-body').hidden = k !== 'bn';
-    if (k === 'med') renderMed(); else if (k === 'card') renderCard(); else K.loadBenefit();
+    $('#kid-med').hidden = k !== 'med'; $('#kid-card').hidden = k !== 'card'; $('#kid-sched').hidden = k !== 'sched'; $('#benefit-body').hidden = k !== 'bn';
+    if (k === 'med') renderMed(); else if (k === 'card') renderCard(); else if (k === 'sched') renderSched(); else K.loadBenefit();
   }
   $$('#kid-seg button').forEach(function (b) { b.addEventListener('click', function () { showPane(b.dataset.k); }); });
   K.onShow.benefit = function (opt) { showPane(opt && opt.pane ? opt.pane : pane); };
