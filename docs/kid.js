@@ -75,7 +75,7 @@
       if (a.dataset.kidAdd === 'med') toast('생일을 응급 카드에 넣어 두면 나이에 맞는 안내가 나와요');
     }
   });
-  function render(where) { if (where === 'card') renderCard(); else if (where === 'sched') renderSched(); else renderMed(); }
+  function render(where) { if (where === 'card') renderCard(); else if (where === 'sched') renderSched(); else if (where === 'grow') renderGrow(); else renderMed(); }
 
   // ───── 해열제 기록 ─────
   // 최소 간격·하루 최대 횟수는 국내 어린이용 해열제 설명서의 일반적인 기준. 제품마다 다를 수 있어 설명서가 우선.
@@ -284,9 +284,9 @@
         saveKids(k); editing = false; toast('저장했어요'); renderCard();
       });
       $('#card-del').addEventListener('click', function () {
-        if (!confirm(kid.name + '의 카드와 해열제 기록을 모두 지울까요?')) return;
+        if (!confirm(kid.name + '의 카드와 해열제·일정·성장 기록을 모두 지울까요?')) return;
         var k = kids(); k.list = k.list.filter(function (x) { return x.id !== kid.id; }); k.cur = k.list[0] ? k.list[0].id : '';
-        saveKids(k); save('kidlog:' + kid.id, []); editing = false; renderCard();
+        saveKids(k); try { ['kidlog:', 'kiddone:', 'kidgrow:'].forEach(function (p) { localStorage.removeItem(p + kid.id); }); } catch (e) {} editing = false; renderCard();
       });
       return;
     }
@@ -300,8 +300,11 @@
         row('먹는 약', kid.meds) + row('병력', kid.conditions) + row('다니는 병원', kid.hospital) + row('보호자', kid.guardian) + row('메모', kid.memo) +
       '</div>' +
       '<div class="actions pad"><button class="btn" id="card-share">📤 카톡으로 보내기</button><button class="btn ghost" id="card-edit">✏️ 고치기</button></div>' +
+      '<button class="btn soft lock-open" id="card-lock">📱 잠금화면 이미지 만들기</button>' +
+      '<div id="lock-box"></div>' +
       '<div class="note pad">응급실·119에서 이 화면을 그대로 보여 주세요.</div>' + privNote('kid');
     $('#card-edit').addEventListener('click', function () { editing = true; renderCard(); });
+    $('#card-lock').addEventListener('click', function () { lockForm(kid); });
     $('#card-share').addEventListener('click', function () {
       if (!confirmShare('응급 카드')) return;
       var t = '[' + kid.name + ' 응급 카드]\n' +
@@ -315,6 +318,135 @@
     });
   }
 
+
+  // ───── 📱 응급 카드 → 잠금화면 이미지 (휴대폰 안에서만 그림을 만든다) ─────
+  var LOCK_FIELDS = [
+    ['age', '이름·나이', true], ['birth', '생년월일', false], ['allergy', '알레르기', true], ['meds', '먹는 약', true],
+    ['conditions', '병력', true], ['blood', '혈액형', true], ['weight', '몸무게', false], ['hospital', '다니는 병원', false], ['guardian', '보호자 연락처', true]
+  ];
+  function lockForm(kid) {
+    var box = $('#lock-box');
+    if (box.innerHTML) { box.innerHTML = ''; return; }
+    box.innerHTML = '<div class="lock-form"><div class="lock-h">잠금화면에 넣을 내용</div>' +
+      '<div class="lock-warn">⚠️ 잠금화면은 휴대폰을 열지 않아도 <b>누구나 볼 수 있어요</b>. 꼭 필요한 것만 골라 주세요.</div>' +
+      '<div class="lock-chk">' + LOCK_FIELDS.map(function (f) {
+        var has = f[0] === 'age' || f[0] === 'allergy' || kid[f[0]];
+        return '<label' + (has ? '' : ' class="off"') + '><input type="checkbox" data-lf="' + f[0] + '"' + (f[2] && has ? ' checked' : '') + (f[0] === 'age' ? ' checked disabled' : '') + (has ? '' : ' disabled') + '> ' + f[1] + (has ? '' : ' <small>(카드에 없음)</small>') + '</label>';
+      }).join('') + '</div>' +
+      '<div class="lock-theme"><span>배경</span>' + ['pink', 'sky', 'mint', 'night'].map(function (t, i) { return '<button class="lt lt-' + t + (i === 0 ? ' on' : '') + '" data-lt="' + t + '" aria-label="' + t + '"></button>'; }).join('') + '</div>' +
+      '<button class="btn" id="lock-make">이미지 만들기</button>' +
+      '<div class="priv">🔒 이미지는 이 휴대폰 안에서만 만들어지고 어디에도 보내지 않아요. 저장한 사진이 클라우드(구글 포토·아이클라우드)와 동기화되면 그곳에도 저장돼요.</div></div>';
+    var theme = 'pink';
+    $$('#lock-box [data-lt]').forEach(function (b) { b.addEventListener('click', function () { theme = b.dataset.lt; $$('#lock-box [data-lt]').forEach(function (x) { x.classList.toggle('on', x === b); }); }); });
+    $('#lock-make').addEventListener('click', function () {
+      var pick = {}; $$('#lock-box [data-lf]').forEach(function (c) { pick[c.dataset.lf] = c.checked; });
+      var go = function () { lockResult(kid, drawLock(kid, pick, theme)); };
+      if (document.fonts && document.fonts.load) document.fonts.load('40px Jua', '아이').then(go, go); else go();
+    });
+  }
+  var LOCK_THEMES = {
+    pink: { bg: ['#FFE9F0', '#F1EEFF'], ink: '#2B3150', sub: '#7A7F99', dot: '#FFB3C7' },
+    sky: { bg: ['#E3F1FF', '#F4F5FF'], ink: '#2B3150', sub: '#6F7894', dot: '#9CC8FF' },
+    mint: { bg: ['#E2F6EF', '#FFF8E1'], ink: '#22413A', sub: '#62786F', dot: '#9ADBC5' },
+    night: { bg: ['#1E2456', '#3A3F86'], ink: '#FFFFFF', sub: '#C5C8EE', dot: '#FFD166' }
+  };
+  function wrapLines(ctx, text, maxW) {
+    var out = [];
+    String(text).split(/\n/).forEach(function (para) {
+      var line = '';
+      Array.from(para).forEach(function (ch) {
+        if (ctx.measureText(line + ch).width > maxW && line) { out.push(line); line = ch.trim() ? ch : ''; } else line += ch;
+      });
+      out.push(line);
+    });
+    return out;
+  }
+  function roundRect(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+  function drawLock(kid, pick, theme) {
+    var Th = LOCK_THEMES[theme] || LOCK_THEMES.pink;
+    var W = 1170, H = 2532, c = document.createElement('canvas'); c.width = W; c.height = H;
+    var ctx = c.getContext('2d');
+    var g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, Th.bg[0]); g.addColorStop(1, Th.bg[1]); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    // 작은 점 무늬 (귀엽게)
+    ctx.fillStyle = Th.dot; ctx.globalAlpha = theme === 'night' ? 0.55 : 0.35;
+    for (var i = 0; i < 46; i++) { var px = (i * 263) % W, py = 120 + ((i * 397) % (H - 240)); ctx.beginPath(); ctx.arc(px, py, 6 + (i % 4) * 3, 0, Math.PI * 2); ctx.fill(); }
+    ctx.globalAlpha = 1;
+    var SANS = '"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif', DISP = 'Jua,' + SANS;
+    var rows = [];
+    if (pick.birth && kid.birth) rows.push(['생년월일', kid.birth]);
+    rows.push(['알레르기', kid.allergy || '없음 / 모름', !!kid.allergy]);
+    if (pick.meds && kid.meds) rows.push(['먹는 약', kid.meds]);
+    if (pick.conditions && kid.conditions) rows.push(['병력', kid.conditions]);
+    if (pick.blood && kid.blood) rows.push(['혈액형', kid.blood]);
+    if (pick.weight && kid.weight) rows.push(['몸무게', kid.weight + 'kg' + (kid.weightAt ? ' (' + kid.weightAt + ')' : '')]);
+    if (pick.hospital && kid.hospital) rows.push(['다니는 병원', kid.hospital]);
+    if (pick.guardian && kid.guardian) rows.push(['보호자', kid.guardian]);
+    if (!pick.allergy) rows = rows.filter(function (r) { return r[0] !== '알레르기'; });
+    // 카드 크기: 위 40%는 시계 자리로 비워 둔다
+    var CX = 90, CW = W - 180, top = 1010, pad = 56, maxBottom = H - 230;
+    var fs = 50, layout;
+    for (; fs >= 30; fs -= 2) {
+      var y = 0; layout = [];
+      ctx.font = '700 ' + fs + 'px ' + SANS;
+      rows.forEach(function (r) {
+        var lines = wrapLines(ctx, r[1], CW - pad * 2);
+        layout.push({ r: r, lines: lines, y: y });
+        y += fs * 0.62 + 18 + lines.length * fs * 1.3 + 30;
+      });
+      if (top + 190 + y + 40 <= maxBottom) break;
+    }
+    var bodyH = layout.length ? layout[layout.length - 1].y + 18 + fs * 0.62 + layout[layout.length - 1].lines.length * fs * 1.3 + 30 : 0;
+    var CH = 190 + bodyH + 30;
+    ctx.save(); ctx.shadowColor = 'rgba(40,40,90,.18)'; ctx.shadowBlur = 50; ctx.shadowOffsetY = 16;
+    ctx.fillStyle = '#FFFFFF'; roundRect(ctx, CX, top, CW, CH, 56); ctx.fill(); ctx.restore();
+    // 머리띠
+    ctx.save(); roundRect(ctx, CX, top, CW, CH, 56); ctx.clip();
+    ctx.fillStyle = '#E8475F'; ctx.fillRect(CX, top, CW, 92);
+    ctx.restore();
+    ctx.fillStyle = '#FFFFFF'; ctx.font = '44px ' + DISP; ctx.textBaseline = 'middle';
+    ctx.fillText('✚ 응급 정보 · EMERGENCY', CX + pad, top + 48);
+    ctx.fillStyle = '#2B3150'; ctx.font = '72px ' + DISP; ctx.textBaseline = 'alphabetic';
+    var nm = kid.name || '아이'; ctx.fillText(nm, CX + pad, top + 172);
+    var nw = ctx.measureText(nm).width;
+    ctx.fillStyle = '#7A7F99'; ctx.font = '600 40px ' + SANS; ctx.fillText(ageText(kid.birth), CX + pad + nw + 22, top + 168);
+    var by = top + 190;
+    ctx.strokeStyle = '#EEF0F7'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(CX + pad, by); ctx.lineTo(CX + CW - pad, by); ctx.stroke();
+    layout.forEach(function (it) {
+      var y0 = by + 30 + it.y, danger = it.r[2];
+      if (danger) { ctx.fillStyle = '#FFECEF'; roundRect(ctx, CX + pad - 22, y0 - 14, CW - pad * 2 + 44, fs * 0.62 + 18 + it.lines.length * fs * 1.3 + 22, 26); ctx.fill(); }
+      ctx.fillStyle = danger ? '#D2334C' : '#8A8FA8'; ctx.font = '700 ' + Math.round(fs * 0.62) + 'px ' + SANS; ctx.textBaseline = 'top';
+      ctx.fillText((danger ? '⚠ ' : '') + it.r[0], CX + pad, y0);
+      ctx.fillStyle = danger ? '#B0182F' : '#2B3150'; ctx.font = '700 ' + fs + 'px ' + SANS;
+      it.lines.forEach(function (ln, k) { ctx.fillText(ln, CX + pad, y0 + fs * 0.62 + 18 + k * fs * 1.3); });
+    });
+    ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'center';
+    ctx.fillStyle = Th.sub; ctx.font = '600 34px ' + SANS;
+    ctx.fillText('위급하면 119 · 아이아플때', W / 2, Math.min(H - 150, top + CH + 90));
+    ctx.textAlign = 'left';
+    return c;
+  }
+  function lockResult(kid, canvas) {
+    var box = $('#lock-box');
+    var old = $('#lock-out'); if (old) old.remove();
+    canvas.toBlob(function (blob) {
+      if (!blob) { toast('이미지를 만들지 못했어요'); return; }
+      var url = URL.createObjectURL(blob), name = (kid.name || 'kid') + '-응급카드-잠금화면.png';
+      var file = null; try { file = new File([blob], name, { type: 'image/png' }); } catch (e) {}
+      var canShare = file && navigator.canShare && navigator.canShare({ files: [file] });
+      var out = document.createElement('div'); out.id = 'lock-out'; out.className = 'lock-out';
+      out.innerHTML = '<img src="' + url + '" alt="잠금화면용 응급 카드 이미지">' +
+        '<div class="actions">' + (canShare ? '<button class="btn" id="lock-share">📥 사진으로 저장</button>' : '') +
+        '<a class="btn' + (canShare ? ' ghost' : '') + '" href="' + url + '" download="' + esc(name) + '">⬇️ 내려받기</a></div>' +
+        '<div class="lock-how"><b>잠금화면으로 설정하는 방법</b>' +
+        '<div>📱 <b>아이폰</b>: 저장 → 사진 앱에서 이미지 열기 → 공유(□↑) → "배경화면으로 사용" → 잠금 화면</div>' +
+        '<div>🤖 <b>안드로이드</b>: 저장 → 갤러리에서 이미지 열기 → ⋮ → "배경화면으로 설정" → 잠금화면</div>' +
+        '<div class="muted-s">이미지를 길게 눌러 저장할 수도 있어요. 카드 내용을 고치면 이미지도 다시 만들어 주세요.</div></div>';
+      box.appendChild(out);
+      var sb = $('#lock-share');
+      if (sb) sb.addEventListener('click', function () { navigator.share({ files: [file], title: name }).catch(function () {}); });
+      out.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 'image/png');
+  }
 
   // ───── 📅 예방접종·건강검진 일정 ─────
   // 기준: 질병관리청 표준예방접종일정표(2026), 국민건강보험공단 영유아 건강검진·구강검진 시기.
@@ -402,6 +534,31 @@
     return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent('[' + who + '] ' + x.n) +
       '&dates=' + f(x.s) + '/' + f(e1) + '&details=' + encodeURIComponent((x.note ? x.note + '\n' : '') + '기간: ' + kdate(x.s) + ' ~ ' + kdate(x.e) + '\n확인: ' + CAT[x.c].link + '\n- 아이아플때');
   }
+  // ───── 🐰 칭찬 스티커판 (완료한 접종·검진마다 동물 도장) ─────
+  var ANIMALS = ['🐰', '🐻', '🐥', '🐶', '🐱', '🦊', '🐼', '🐨', '🐯', '🐷', '🐸', '🐹', '🦁', '🐮', '🐳', '🦄'];
+  var STICKER_BG = ['#FFE3EC', '#FFF1C9', '#E3F6EE', '#E6E8FF', '#FFE6D6', '#E0F3FF'];
+  var newSticker = '';
+  function animalOf(id) { var i = SCHED.map(function (x) { return x.id; }).indexOf(id); if (i < 0) i = id.length; return { a: ANIMALS[i % ANIMALS.length], bg: STICKER_BG[i % STICKER_BG.length] }; }
+  function stickerBoard(all, dn, today) {
+    var list = all.filter(function (x) { return x.c !== 'flu'; });
+    var got = list.filter(function (x) { return dn[x.id]; });
+    var due = list.filter(function (x) { return !dn[x.id] && x.s <= today; });
+    var nextOne = list.filter(function (x) { return !dn[x.id] && x.s > today; })[0];
+    var slots = list.filter(function (x) { return dn[x.id] || x.s <= today; });
+    if (nextOne) slots.push(nextOne);
+    if (!slots.length) return '';
+    var html = '<div class="stk"><div class="stk-h"><span>칭찬 스티커판</span><b>' + got.length + '개 모았어요</b></div><div class="stk-grid">' +
+      slots.map(function (x) {
+        var A = animalOf(x.id), isGot = !!dn[x.id];
+        if (isGot) return '<div class="stk-s got' + (x.id === newSticker ? ' pop' : '') + '" style="--sb:' + A.bg + '" title="' + esc(x.n) + '"><i>' + A.a + '</i><small>' + esc(x.n.replace(/ 접종$/, '').replace('영유아 ', '')) + '</small></div>';
+        return '<div class="stk-s ' + (x === nextOne ? 'next' : 'empty') + '" title="' + esc(x.n) + '"><i>' + (x === nextOne ? '🎁' : '?') + '</i><small>' + esc(x.n.replace(/ 접종$/, '').replace('영유아 ', '')) + '</small></div>';
+      }).join('') + '</div>' +
+      '<div class="stk-f">' + (due.length ? '체크하면 스티커가 찍혀요 · 받을 수 있는 스티커 ' + due.length + '개' :
+        nextOne ? '다음 스티커 🎁 ' + esc(nextOne.n) + ' · ' + Math.max(1, Math.ceil((nextOne.s - today) / 86400000)) + '일 뒤부터' : '모든 스티커를 모았어요! 🎉') + '</div></div>';
+    newSticker = '';
+    return html;
+  }
+
   var showAllSched = false;
   function renderSched() {
     var box = $('#kid-sched'); if (!box) return;
@@ -441,6 +598,7 @@
     var sec = function (title, arr, cls) { return arr.length ? '<h3 class="bn-h">' + title + '</h3><ul class="sc-list">' + arr.map(function (x) { return item(x, cls); }).join('') + '</ul>' : ''; };
     box.innerHTML = kidPicker(kid, 'sched') +
       '<div class="sc-head">' + esc(kid.name) + ' · ' + ageText(kid.birth) + '</div>' +
+      stickerBoard(all, dn, today) +
       '<div class="cal-box"><button class="btn" id="ics-btn">📅 남은 일정 캘린더에 한 번에 넣기</button>' +
       '<div class="cal-hint">아이폰·삼성 캘린더에 들어가고, 각 일정 시작 하루 전 아침 9시에 알림이 와요. 구글 캘린더는 아래 일정마다 "구글 캘린더에 추가"를 눌러 주세요.</div></div>' +
       (function () {
@@ -471,8 +629,10 @@
           var v = askDate(def);
           if (v === null) { c.checked = false; return; }
           d2[id] = v === 'x' ? 1 : v;
+          if (x && x.c !== 'flu') { newSticker = id; toast(animalOf(id).a + ' 칭찬 스티커를 받았어요! 잘했어요'); }
         } else delete d2[id];
         save('kiddone:' + kid.id, d2); renderSched();
+        if (newSticker === '' && c.checked) { var st = $('#kid-sched .stk'); if (st) st.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
       });
     });
     $$('#kid-sched [data-redate]').forEach(function (a) {
@@ -535,7 +695,7 @@
 
   // ───── 💾 백업 내보내기·불러오기 ─────
   // 휴대폰에만 저장하는 대신, 이용자가 직접 파일로 옮길 수 있게 한다. (서버를 거치지 않음)
-  var BK_KEYS = /^(kids|kidlog:.+|kiddone:.+|favs|region|bigFont|kidPane)$/;
+  var BK_KEYS = /^(kids|kidlog:.+|kiddone:.+|kidgrow:.+|favs|region|bigFont|kidPane)$/;
   function backupData() {
     var data = {};
     for (var i = 0; i < localStorage.length; i++) {
@@ -577,13 +737,133 @@
     r.readAsText(f);
   });
 
+  // ───── 📏 키·몸무게 성장 기록 ─────
+  // 또래 비교: WHO 아동 성장 기준(0~60개월). 우리나라 2017 성장도표도 만 3세 미만은 WHO 기준을 그대로 쓴다.
+  function grows(id) { return load('kidgrow:' + id, []); }
+  function ageMonthsAt(birth, ymdStr) {
+    var b = new Date(birth + 'T00:00:00'), d = new Date(ymdStr + 'T00:00:00');
+    return (d - b) / 86400000 / 30.4375;
+  }
+  function lmsAt(key, m) {
+    var T = window.KC_GROW && window.KC_GROW[key];
+    if (!T || m < 0 || m > 60) return null;
+    var i = Math.min(59, Math.floor(m)), f = m - i, a = T[i], b = T[i + 1];
+    if (key[0] === 'h' && i === 23) b = [b[0], b[1] + 0.7, b[2]]; // 24개월: 누운 키 기준으로 이어 붙임
+    return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
+  }
+  function zOf(lms, x) { var L = lms[0], M = lms[1], S = lms[2]; return Math.abs(L) < 1e-6 ? Math.log(x / M) / S : (Math.pow(x / M, L) - 1) / (L * S); }
+  function xOf(lms, z) { var L = lms[0], M = lms[1], S = lms[2]; return Math.abs(L) < 1e-6 ? M * Math.exp(S * z) : M * Math.pow(1 + L * S * z, 1 / L); }
+  function cdf(z) { var t = 1 / (1 + 0.2316419 * Math.abs(z)), d = 0.3989423 * Math.exp(-z * z / 2); var p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274)))); return z > 0 ? 1 - p : p; }
+  var PZ = { 3: -1.8808, 15: -1.0364, 50: 0, 85: 1.0364, 97: 1.8808 };
+  function pctText(kind, p) {
+    var word = kind === 'h' ? '커요' : '무거워요';
+    if (p < 3) return '<b>백분위 3 미만</b> · 또래보다 많이 ' + (kind === 'h' ? '작은' : '가벼운') + ' 편이에요';
+    if (p > 97) return '<b>백분위 97 초과</b> · 또래보다 많이 ' + (kind === 'h' ? '큰' : '무거운') + ' 편이에요';
+    return '<b>백분위 ' + Math.round(p) + '</b> · 또래 100명 중 <b>' + Math.max(1, 100 - Math.round(p)) + '번째</b>로 ' + word;
+  }
+  function growChart(kid, recs, kind) {
+    var key = kind + (kid.sex === 'f' ? 'g' : 'b');
+    var pts = recs.filter(function (r) { return r[kind]; }).map(function (r) { return { m: ageMonthsAt(kid.birth, r.d), v: +r[kind] }; }).filter(function (p) { return p.m >= 0 && p.m <= 60; });
+    if (!pts.length) return '';
+    var mn = Math.min.apply(null, pts.map(function (p) { return p.m; })), mx = Math.max.apply(null, pts.map(function (p) { return p.m; }));
+    var a0 = Math.max(0, Math.floor(mn) - 3), a1 = Math.min(60, Math.ceil(mx) + 3);
+    if (a1 - a0 < 12) { a1 = Math.min(60, a0 + 12); a0 = Math.max(0, a1 - 12); }
+    var curve = function (pc) { var out = []; for (var m = a0; m <= a1 + 1e-9; m += 0.5) { var l = lmsAt(key, m); if (l) out.push({ m: m, v: xOf(l, PZ[pc]) }); } return out; };
+    var c3 = curve(3), c15 = curve(15), c50 = curve(50), c85 = curve(85), c97 = curve(97);
+    var all = c3.concat(c97).map(function (p) { return p.v; }).concat(pts.map(function (p) { return p.v; }));
+    var lo = Math.floor(Math.min.apply(null, all)), hi = Math.ceil(Math.max.apply(null, all));
+    var W = 340, H = 190, L = 34, R = 34, T = 10, B = 24;
+    var X = function (m) { return L + (W - L - R) * (m - a0) / (a1 - a0); }, Y = function (v) { return T + (H - T - B) * (hi - v) / (hi - lo); };
+    var path = function (arr) { return arr.map(function (p, i) { return (i ? 'L' : 'M') + X(p.m).toFixed(1) + ' ' + Y(p.v).toFixed(1); }).join(''); };
+    var band = function (a, b) { return path(a) + b.slice().reverse().map(function (p) { return 'L' + X(p.m).toFixed(1) + ' ' + Y(p.v).toFixed(1); }).join('') + 'Z'; };
+    var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="gchart ' + kind + '" role="img" aria-label="' + (kind === 'h' ? '키' : '몸무게') + ' 성장 그래프">';
+    var step = (hi - lo) > 30 ? 10 : (hi - lo) > 12 ? 5 : (hi - lo) > 6 ? 2 : 1;
+    for (var v = Math.ceil(lo / step) * step; v <= hi; v += step) svg += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(v) + '" y2="' + Y(v) + '" class="g-grid"/><text x="' + (L - 4) + '" y="' + (Y(v) + 4) + '" class="g-ax" text-anchor="end">' + v + '</text>';
+    var mstep = (a1 - a0) > 30 ? 12 : (a1 - a0) > 14 ? 6 : 3;
+    for (var m = Math.ceil(a0 / mstep) * mstep; m <= a1; m += mstep) svg += '<text x="' + X(m) + '" y="' + (H - 6) + '" class="g-ax" text-anchor="middle">' + (m % 12 === 0 && m ? (m / 12) + '세' : m + '개월') + '</text>';
+    svg += '<path d="' + band(c3, c97) + '" class="g-b1"/><path d="' + band(c15, c85) + '" class="g-b2"/><path d="' + path(c50) + '" class="g-50"/>';
+    [[c97, '97'], [c50, '50'], [c3, '3']].forEach(function (x) { var p = x[0][x[0].length - 1]; svg += '<text x="' + (W - R + 3) + '" y="' + (Y(p.v) + 4) + '" class="g-pl">' + x[1] + '</text>'; });
+    pts.sort(function (a, b) { return a.m - b.m; });
+    if (pts.length > 1) svg += '<path d="' + path(pts) + '" class="g-line"/>';
+    pts.forEach(function (p) { svg += '<circle cx="' + X(p.m).toFixed(1) + '" cy="' + Y(p.v).toFixed(1) + '" r="5" class="g-dot"/>'; });
+    return '<div class="g-box"><div class="g-h">' + (kind === 'h' ? '📏 키 (cm)' : '⚖️ 몸무게 (kg)') + ' <span>가운데 진한 선 = 또래 평균(50) · 색 띠 = 100명 중 가운데 70명</span></div>' + svg + '</div>';
+  }
+  function renderGrow() {
+    var box = $('#kid-grow'); if (!box) return;
+    var kid = curKid();
+    if (!kid) {
+      box.innerHTML = '<div class="kid-empty"><b>키·몸무게 성장 기록</b>키와 몸무게를 적어 두면 또래와 비교한 그래프로 보여 드려요. 영유아 검진 갈 때도 도움이 돼요.' +
+        '<button class="btn" data-kid-add="grow">+ 아이 추가</button></div>' + privNote('kid');
+      return;
+    }
+    var recs = grows(kid.id).slice().sort(function (a, b) { return a.d < b.d ? 1 : -1; });
+    var today = ymd(new Date());
+    var am = kid.birth ? ageMonths(kid.birth) : null;
+    var canCmp = kid.birth && kid.sex && am !== null && am <= 60;
+    var head = kidPicker(kid, 'grow') + '<div class="sc-head">' + esc(kid.name) + (kid.birth ? ' · ' + ageText(kid.birth) : '') + '</div>';
+    var sexRow = '<div class="g-sex"><span>또래 비교 기준</span><div class="seg mini">' +
+      '<button data-sex="m" class="' + (kid.sex === 'm' ? 'on' : '') + '">👦 남아</button><button data-sex="f" class="' + (kid.sex === 'f' ? 'on' : '') + '">👧 여아</button></div></div>';
+    var latest = '';
+    if (recs.length) {
+      var r = recs[0], m0 = kid.birth ? ageMonthsAt(kid.birth, r.d) : null;
+      var line = function (kind, v, unit) {
+        if (!v) return '';
+        var lms = canCmp && m0 !== null && m0 >= 0 && m0 <= 60 ? lmsAt(kind + (kid.sex === 'f' ? 'g' : 'b'), m0) : null;
+        return '<div class="g-now ' + kind + '"><i>' + (kind === 'h' ? '📏' : '⚖️') + '</i><div><div class="g-v">' + v + unit + '</div>' +
+          (lms ? '<div class="g-p">' + pctText(kind, cdf(zOf(lms, +v)) * 100) + '</div>' : '') + '</div></div>';
+      };
+      latest = '<div class="g-latest"><div class="g-lh">' + r.d.replace(/-/g, '.') + ' 기록</div>' + line('h', r.h, 'cm') + line('w', r.w, 'kg') + '</div>';
+    }
+    var note = !kid.birth ? '<div class="g-tip">응급 카드에 생년월일을 넣으면 또래와 비교해 드려요.</div>' :
+      !kid.sex ? '<div class="g-tip">위에서 남아·여아를 고르면 또래와 비교해 드려요.</div>' :
+      am > 60 ? '<div class="g-tip">만 5세가 넘으면 이 화면에서는 기록만 해요. 또래 비교는 영유아 검진 결과지나 질병관리청 「2017 소아청소년 성장도표」를 참고하세요.</div>' : '';
+    box.innerHTML = head + sexRow + latest + note +
+      (canCmp ? growChart(kid, recs, 'h') + growChart(kid, recs, 'w') : '') +
+      '<div class="g-form"><div class="g-fh">새로 재기</div>' +
+        '<label>날짜<input type="date" id="g-d" value="' + today + '" max="' + today + '"></label>' +
+        '<div class="g-two"><label>키 (cm)<input type="number" id="g-h" step="0.1" inputmode="decimal" placeholder="예: 86.5"></label>' +
+        '<label>몸무게 (kg)<input type="number" id="g-w" step="0.1" inputmode="decimal" placeholder="예: 12.3"></label></div>' +
+        '<button class="btn" id="g-save">기록하기</button>' +
+        '<div class="muted-s">만 2세 전에는 누워서 잰 키, 2세부터는 서서 잰 키로 비교해요. 하나만 적어도 괜찮아요.</div></div>' +
+      (recs.length ? '<h3 class="bn-h">지난 기록</h3><ul class="g-list">' + recs.map(function (r) {
+        return '<li><span>' + r.d.replace(/-/g, '.') + (kid.birth ? ' <small>' + (function (m) { m = Math.floor(m); return m < 24 ? m + '개월' : Math.floor(m / 12) + '세 ' + (m % 12) + '개월'; })(ageMonthsAt(kid.birth, r.d)) + '</small>' : '') + '</span>' +
+          '<b>' + (r.h ? r.h + 'cm' : '') + (r.h && r.w ? ' · ' : '') + (r.w ? r.w + 'kg' : '') + '</b><button class="del" data-gdel="' + r.d + '" aria-label="지우기">✕</button></li>';
+      }).join('') + '</ul>' : '') +
+      '<div class="note pad">또래 비교는 참고용이에요. 한 번 잰 값보다 꾸준히 자라는 흐름이 더 중요해요. 걱정되면 소아과나 영유아 검진 때 상의하세요.<br>기준: WHO 아동 성장 기준(0~5세). 우리나라 2017 소아청소년 성장도표도 만 3세 미만은 이 기준을 써요. 만 3~5세는 국내 도표와 조금 다를 수 있어요.</div>' +
+      privNote('kid');
+    $$('#kid-grow [data-sex]').forEach(function (b) {
+      b.addEventListener('click', function () { var k = kids(), me = k.list.filter(function (x) { return x.id === kid.id; })[0]; me.sex = b.dataset.sex; saveKids(k); renderGrow(); });
+    });
+    $('#g-save').addEventListener('click', function () {
+      var d = $('#g-d').value || today, h = parseFloat($('#g-h').value), w = parseFloat($('#g-w').value);
+      if (d > today) { toast('오늘 이후 날짜는 안 돼요'); return; }
+      if (!(h > 0) && !(w > 0)) { toast('키나 몸무게를 하나 이상 적어 주세요'); return; }
+      if (h && (h < 30 || h > 200)) { toast('키를 cm로 적어 주세요 (예: 86.5)'); return; }
+      if (w && (w < 1 || w > 150)) { toast('몸무게를 kg로 적어 주세요 (예: 12.3)'); return; }
+      var l = grows(kid.id).filter(function (x) { return x.d !== d; });
+      var prev = grows(kid.id).filter(function (x) { return x.d === d; })[0] || {};
+      l.push({ d: d, h: h > 0 ? Math.round(h * 10) / 10 : prev.h, w: w > 0 ? Math.round(w * 10) / 10 : prev.w });
+      l.sort(function (a, b) { return a.d < b.d ? -1 : 1; });
+      save('kidgrow:' + kid.id, l.slice(-200));
+      var last = l[l.length - 1];
+      if (w > 0 && last.d === d) { var k = kids(), me = k.list.filter(function (x) { return x.id === kid.id; })[0]; me.weight = String(last.w); me.weightAt = d; saveKids(k); }
+      toast('기록했어요' + (w > 0 && last.d === d ? ' · 응급 카드 몸무게도 바꿨어요' : '')); renderGrow();
+    });
+    $$('#kid-grow [data-gdel]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        if (!confirm(b.dataset.gdel + ' 기록을 지울까요?')) return;
+        save('kidgrow:' + kid.id, grows(kid.id).filter(function (x) { return x.d !== b.dataset.gdel; })); renderGrow();
+      });
+    });
+  }
+
   // ───── 우리아이 탭 안 전환 ─────
   var pane = load('kidPane', 'med');
   function showPane(k) {
     pane = k; save('kidPane', k);
     $$('#kid-seg button').forEach(function (b) { b.classList.toggle('on', b.dataset.k === k); });
-    $('#kid-med').hidden = k !== 'med'; $('#kid-card').hidden = k !== 'card'; $('#kid-sched').hidden = k !== 'sched'; $('#benefit-body').hidden = k !== 'bn';
-    if (k === 'med') renderMed(); else if (k === 'card') renderCard(); else if (k === 'sched') renderSched(); else K.loadBenefit();
+    $('#kid-med').hidden = k !== 'med'; $('#kid-card').hidden = k !== 'card'; $('#kid-sched').hidden = k !== 'sched'; $('#kid-grow').hidden = k !== 'grow'; $('#benefit-body').hidden = k !== 'bn';
+    if (k === 'med') renderMed(); else if (k === 'card') renderCard(); else if (k === 'sched') renderSched(); else if (k === 'grow') renderGrow(); else K.loadBenefit();
   }
   $$('#kid-seg button').forEach(function (b) { b.addEventListener('click', function () { showPane(b.dataset.k); }); });
   K.onShow.benefit = function (opt) { showPane(opt && opt.pane ? opt.pane : pane); };

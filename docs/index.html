@@ -31,7 +31,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="stylesheet" href="vendor/jua/jua.css">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-<link rel="stylesheet" href="style.css?v=28">
+<link rel="stylesheet" href="style.css?v=29">
 </head>
 <body>
 <header class="top">
@@ -171,16 +171,18 @@
   <section class="tab" id="tab-benefit" hidden>
     <div class="panel">
       <div class="seg" id="kid-seg">
-        <button class="on" data-k="med">💊 해열제</button>
-        <button data-k="card">🪪 응급카드</button>
-        <button data-k="sched">📅 일정</button>
-        <button data-k="bn">♡ 혜택</button>
+        <button class="on" data-k="med"><i>💊</i>해열제</button>
+        <button data-k="card"><i>🪪</i>응급카드</button>
+        <button data-k="sched"><i>📅</i>일정</button>
+        <button data-k="grow"><i>📏</i>성장</button>
+        <button data-k="bn"><i>♡</i>혜택</button>
       </div>
       <div class="bk-row"><button class="bk-btn" id="bk-out">💾 기록 백업하기</button><button class="bk-btn" id="bk-in">📂 백업 불러오기</button><input type="file" id="bk-file" accept=".json,application/json" hidden></div>
     </div>
     <div id="kid-med" class="kid-pane"></div>
     <div id="kid-card" class="kid-pane" hidden></div>
     <div id="kid-sched" class="kid-pane" hidden></div>
+    <div id="kid-grow" class="kid-pane" hidden></div>
     <div id="benefit-body" class="kid-pane" hidden><div class="spinner">불러오는 중…</div></div>
   </section>
 
@@ -226,9 +228,10 @@
 </div>
 
 <script src="vendor/leaflet/leaflet.js"></script>
-<script src="config.js?v=28"></script>
-<script src="app.js?v=28"></script>
-<script src="kid.js?v=28"></script>
-<script src="triage.js?v=28"></script>
+<script src="config.js?v=29"></script>
+<script src="app.js?v=29"></script>
+<script src="growth-data.js?v=29"></script>
+<script src="kid.js?v=29"></script>
+<script src="triage.js?v=29"></script>
 </body>
 </html>
