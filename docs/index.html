@@ -31,7 +31,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="stylesheet" href="vendor/jua/jua.css">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-<link rel="stylesheet" href="style.css?v=34">
+<link rel="stylesheet" href="style.css?v=35">
 </head>
 <body>
 <header class="top">
@@ -75,6 +75,7 @@
   <section class="tab" id="tab-region">
     <button class="triage-btn" data-triage><span class="tb-ic" aria-hidden="true">🤒</span><span class="tb-t"><b>아이가 아파요</b>지금 어디로 가야 할지 알려 드릴게요</span><span class="tb-ar" aria-hidden="true">›</span></button>
     <div id="today-card" hidden></div>
+    <div id="home-card" hidden></div>
     <div id="flu-banner" hidden></div>
     <div id="epi-card" hidden></div>
     <div class="quick-row"><button class="qr-btn" data-firstaid><span>🆘</span>응급처치 안내</button><button class="qr-btn" data-go-tab="benefit" data-go-pane="care"><span>🩺</span>진료실 요약</button><button class="qr-btn" data-lang-open><span>🌏</span>Language</button></div>
@@ -89,6 +90,7 @@
         <button class="btn ghost" id="locate-region">📍 내 위치로</button>
         <button class="btn ghost" id="open-fav">★ 즐겨찾기</button>
       </div>
+      <div class="home-row" id="home-row"></div>
       <input id="kw" type="search" placeholder="병원 이름·주소 검색" autocomplete="off">
       <div class="chips" data-for="region">
         <button class="chip" data-f="openNow">지금 진료중</button>
@@ -244,13 +246,13 @@
 </div>
 
 <script src="vendor/leaflet/leaflet.js"></script>
-<script src="config.js?v=34"></script>
-<script src="app.js?v=34"></script>
-<script src="growth-data.js?v=34"></script>
-<script src="kid.js?v=34"></script>
-<script src="care.js?v=34"></script>
-<script src="scan.js?v=34"></script>
-<script src="i18n.js?v=34"></script>
-<script src="triage.js?v=34"></script>
+<script src="config.js?v=35"></script>
+<script src="app.js?v=35"></script>
+<script src="growth-data.js?v=35"></script>
+<script src="kid.js?v=35"></script>
+<script src="care.js?v=35"></script>
+<script src="scan.js?v=35"></script>
+<script src="i18n.js?v=35"></script>
+<script src="triage.js?v=35"></script>
 </body>
 </html>

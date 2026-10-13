@@ -740,7 +740,7 @@
 
   // ───── 💾 백업 내보내기·불러오기 ─────
   // 휴대폰에만 저장하는 대신, 이용자가 직접 파일로 옮길 수 있게 한다. (서버를 거치지 않음)
-  var BK_KEYS = /^(kids|kidlog:.+|kiddone:.+|kidgrow:.+|kidrx:.+|kidvisit:.+|lang|favs|region|bigFont|kidPane)$/;
+  var BK_KEYS = /^(kids|kidlog:.+|kiddone:.+|kidgrow:.+|kidrx:.+|kidvisit:.+|lang|favs|region|home|bigFont|kidPane)$/;
   function backupData() {
     var data = {};
     for (var i = 0; i < localStorage.length; i++) {

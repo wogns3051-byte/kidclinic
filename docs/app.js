@@ -241,7 +241,14 @@
       (h.distance != null ? '<span class="dist">' + (h.distance < 1 ? Math.round(h.distance * 1000) + 'm' : h.distance.toFixed(1) + 'km') + '</span>' : '') + '</div>' +
       '<div class="addr">' + esc(h.addr) + '</div>' +
       (h.when ? '<div class="when' + (h.when.soon ? ' soon' : '') + '">' + whenText(h.when) + '</div>' : '') +
-      '<div class="meta">' + tags(h) + '</div></li>';
+      '<div class="meta">' + tags(h) + '</div>' + quickActs(h) + '</li>';
+  }
+  // 목록에서 바로 전화·길찾기 (상세를 열지 않고)
+  function quickActs(h) {
+    var tel = (h.tel || '').replace(/[^0-9]/g, '');
+    var map = h.lat != null ? 'https://map.kakao.com/link/to/' + encodeURIComponent(h.name) + ',' + h.lat + ',' + h.lng : 'https://map.kakao.com/link/search/' + encodeURIComponent(h.addr || h.name);
+    return '<div class="qa">' + (tel ? '<a class="qa-call" data-stop href="tel:' + tel + '">📞 전화</a>' : '') +
+      '<a class="qa-map" data-stop href="' + map + '" target="_blank" rel="noopener">🗺 길찾기</a><span class="qa-more">자세히 ›</span></div>';
   }
   function render(listEl, countEl, data, append, emptyMsg) {
     if (!append) listEl.innerHTML = '';
@@ -282,10 +289,60 @@
   }
 
   // ───── 탭: 지역 ─────
-  var regionOffset = 0;
+  var regionOffset = 0, regionsReady = false;
+  // ───── 📌 우리 동네 고정 ─────
+  function homeRegion() { return load('home', null); }
+  function regionName(sd, sg) {
+    var n = ''; regions.forEach(function (x) { if (x.code === sd) { n = x.name; x.sggu.forEach(function (g) { if (g.code === sg) n += ' ' + g.name; }); } });
+    return n;
+  }
+  function renderHomeRow() {
+    var row = $('#home-row'); if (!row || !regionsReady) return;
+    var hm = homeRegion(), sd = $('#sido').value, sg = $('#sggu').value;
+    if (hm && hm.sido === sd && (hm.sggu || '') === sg) {
+      var ios = /iPhone|iPad|iPod/.test(navigator.userAgent) && !(navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches);
+      row.innerHTML = '<div class="home-on">📌 <b>' + esc(hm.name) + '</b> 우리 동네로 고정돼 있어요 <button id="home-off">해제</button></div>' +
+        (ios ? '<div class="home-tip">아이폰은 Safari에서 공유 → <b>홈 화면에 추가</b>로 설치해야 고정이 오래 유지돼요. (Safari는 오래 안 열면 저장된 설정을 지울 수 있어요)</div>' : '');
+      $('#home-off').addEventListener('click', function () { if (!confirm('우리 동네 고정을 해제할까요?')) return; save('home', null); toast('고정을 해제했어요'); renderHomeRow(); renderHomeCard(); });
+    } else if (sd) {
+      row.innerHTML = '<button class="btn soft home-pin" id="home-pin">📌 ' + esc(regionName(sd, sg)) + '를 우리 동네로 고정' + (hm ? ' (지금: ' + esc(hm.name) + ')' : '') + '</button>';
+      $('#home-pin').addEventListener('click', function () {
+        save('home', { sido: sd, sggu: sg, name: regionName(sd, sg) });
+        if (navigator.storage && navigator.storage.persist) { try { navigator.storage.persist(); } catch (e) {} }
+        toast('📌 우리 동네로 고정했어요. 다음에 열어도 이 지역이 바로 나와요'); renderHomeRow(); renderHomeCard();
+      });
+    } else if (hm) {
+      row.innerHTML = '<button class="btn ghost home-pin" id="home-go">📌 우리 동네(' + esc(hm.name) + ')로 돌아가기</button>';
+      $('#home-go').addEventListener('click', function () { setRegion(hm.sido, hm.sggu); loadRegion(); });
+    } else row.innerHTML = '';
+  }
+  function setRegion(sd, sg) { $('#sido').value = sd; fillSggu($('#sido'), $('#sggu')); $('#sggu').value = sg || ''; }
+  // 지역 탭 위 "우리 동네" 카드: 즐겨찾기 → 지금 진료 중인 소아과 순, 바로 전화
+  function renderHomeCard() {
+    var box = $('#home-card'); if (!box) return;
+    var hm = homeRegion();
+    if (!hm) { box.hidden = true; return; }
+    api('/hospitals', { sido: hm.sido, sggu: hm.sggu || '', limit: 300 }).then(function (d) {
+      var items = d.items.filter(function (h) { return !h.general || favs.indexOf(h.id) >= 0; });
+      var score = function (h) { return (favs.indexOf(h.id) >= 0 ? 0 : 10) + (h.open === 'open' ? 0 : h.open === 'lunch' ? 1 : h.open === 'unknown' ? 3 : 4); };
+      items.sort(function (a, b) { return score(a) - score(b) || a.name.localeCompare(b.name, 'ko'); });
+      var show = items.slice(0, 5), openN = items.filter(function (h) { return h.open === 'open'; }).length;
+      box.hidden = false; box.className = 'home-card';
+      box.innerHTML = '<div class="hc-h"><b>📌 우리 동네 · ' + esc(hm.name) + '</b><span>지금 진료 중 ' + openN + '곳 · 소아과·병원 ' + items.length + '곳</span></div>' +
+        (show.length ? '<ul class="hc-list">' + show.map(function (h) {
+          var tel = (h.tel || '').replace(/[^0-9]/g, '');
+          return '<li class="item hc-item" data-id="' + esc(h.id) + '"><div class="hc-m"><div class="hc-n">' + (favs.indexOf(h.id) >= 0 ? '<span class="hc-star">★</span>' : '') + esc(h.name) + '</div>' +
+            '<div class="hc-w ' + (h.open === 'open' ? 'on' : h.open === 'lunch' ? 'lunch' : 'off') + '">' + (h.when ? whenText(h.when) : '진료시간 확인 필요') + '</div></div>' +
+            (tel ? '<a class="hc-call" data-stop href="tel:' + tel + '" aria-label="' + esc(h.name) + ' 전화">📞</a>' : '') + '</li>';
+        }).join('') + '</ul>' : '<div class="td-calm">이 지역에 소아과 정보가 없어요</div>') +
+        '<button class="hc-all" id="hc-all">' + esc(hm.name) + ' 전체 목록 보기 ↓</button>';
+      $('#hc-all').addEventListener('click', function () { setRegion(hm.sido, hm.sggu); loadRegion(); var p = $('#sido'); if (p) p.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+    }).catch(function () { box.hidden = true; });
+  }
   function loadRegion(more) {
     var sido = $('#sido').value, sggu = $('#sggu').value, kw = $('#kw').value.trim();
-    save('region', { sido: sido, sggu: sggu });
+    if (regionsReady) save('region', { sido: sido, sggu: sggu }); // 지역 목록을 받기 전에는 저장하지 않음 (빈 값으로 덮어쓰기 방지)
+    renderHomeRow();
     var list = $('#region-list'), cnt = $('#region-count');
     if (!sido && kw.length < 2) {
       list.innerHTML = '<li class="empty"><b>지역을 골라 주세요</b>또는 병원 이름을 두 글자 이상 검색하세요.</li>';
@@ -582,11 +639,12 @@
         if (i >= 0) favs.splice(i, 1); else favs.push(h.id);
         save('favs', favs);
         toast(i >= 0 ? '즐겨찾기에서 뺐어요' : '즐겨찾기에 추가했어요');
-        closeSheet(); if (current === 'fav') loadFav();
+        closeSheet(); if (current === 'fav') loadFav(); renderHomeCard();
       });
     }).catch(function (e) { $('#sheet-body').innerHTML = '<div class="empty"><b>불러오지 못했어요</b>' + esc(e.message) + '</div>'; });
   }
   document.addEventListener('click', function (e) {
+    if (e.target.closest && e.target.closest('[data-stop]')) return; // 전화·길찾기는 그대로
     var li = e.target.closest && e.target.closest('.item');
     if (!li) return;
     if (li.classList.contains('pitem')) { var v = phShown[Number(li.dataset.pi)]; if (v) openPharm(v); return; }
@@ -782,8 +840,12 @@
   api('/regions').then(function (d) {
     regions = d.regions;
     fillSido($('#sido')); fillSido($('#nsido'));
-    if (lastRegion.sido) { $('#sido').value = lastRegion.sido; fillSggu($('#sido'), $('#sggu')); $('#sggu').value = lastRegion.sggu || ''; }
+    regionsReady = true;
+    var hm0 = homeRegion(), start = hm0 && hm0.sido ? hm0 : lastRegion;
+    if (start.sido) setRegion(start.sido, start.sggu);
     loadRegion();
+    renderHomeCard();
+    setInterval(function () { if (current === 'region' && !document.hidden) renderHomeCard(); }, 5 * 60000);
   }).catch(function (e) { fail($('#region-list'), e); });
   if ($('#beds-top')) $('#beds-top').href = ER_BEDS_URL;
   if ($('#open-fav')) $('#open-fav').addEventListener('click', function () { show('fav'); });
