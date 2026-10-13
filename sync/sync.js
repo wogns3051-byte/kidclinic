@@ -153,7 +153,9 @@ function parseDetail(d) {
     // 주차: parkQty 대수, parkXpnsYn 주차비 부담 여부(Y=유료), parkEtc 기타 안내
     park: parkText(d),
     plc: plcText(d),
-    v: 4,
+    // 접수시간 (평일·토요일) — 예: "08:30~17:30"
+    rcvWeek: String(d.rcvWeek || '').trim().slice(0, 40), rcvSat: String(d.rcvSat || '').trim().slice(0, 40),
+    v: 5,
     at: new Date().toISOString(),
   };
 }
@@ -243,7 +245,7 @@ async function main() {
   // 2) 진료시간 (오래된 것부터, 상한만큼)
   const maxAge = CFG.detailMaxAgeDays * 86400000;
   const targets = Object.values(state.items)
-    .filter((h) => !h.detail || h.detail.v !== 4 || Date.now() - Date.parse(h.detail.at) > maxAge) // v4: 위치 안내 항목 추가로 한 번 다시 받음 (소아과·병원급 먼저)
+    .filter((h) => !h.detail || h.detail.v !== 5 || Date.now() - Date.parse(h.detail.at) > maxAge) // v5: 위치 안내·접수시간 항목 추가로 한 번 다시 받음 (소아과·병원급 먼저)
     // 소아과 전문·병원급 먼저, 그다음 오래된 순
     .sort((a, b) => (isPeds(b) - isPeds(a)) || ((a.detail ? Date.parse(a.detail.at) : 0) - (b.detail ? Date.parse(b.detail.at) : 0)))
     .slice(0, CFG.detailPerRun);
@@ -254,7 +256,7 @@ async function main() {
       try {
         const r = await callApi(CFG.detailUrl, { ykiho: h.id, pageNo: 1, numOfRows: 1 }, 2);
         if (r.items[0] && !loggedKeys) { loggedKeys = true; console.log('  (응답 항목 예시: ' + Object.keys(r.items[0]).join(', ') + ')'); }
-        h.detail = r.items[0] ? parseDetail(r.items[0]) : { hours: null, v: 4, at: new Date().toISOString() };
+        h.detail = r.items[0] ? parseDetail(r.items[0]) : { hours: null, v: 5, at: new Date().toISOString() };
         n++;
       } catch (e) {
         if (e.fatal) { if (!stop) console.error('상세 조회 중단: ' + e.message); stop = true; break; }
@@ -344,6 +346,8 @@ function buildOutputs(state) {
       if (d.lunchSat) o.ls = d.lunchSat;
       if (d.holiNote) o.hn = d.holiNote;
       if (d.sunNote) o.sn = d.sunNote;
+      if (d.rcvWeek) o.rw = d.rcvWeek;
+      if (d.rcvSat) o.rs = d.rcvSat;
     } else if (nm && nm.hours) {
       o.h = nm.hours; o.hs = 'n'; // 국립중앙의료원 자료
     }

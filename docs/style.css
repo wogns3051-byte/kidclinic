@@ -946,3 +946,44 @@ html.daytime .brand-wrap .sub { color: rgba(255,255,255,.9); }
 }
 .td-more { display: grid; gap: 6px; } .td-more summary { font-size: 12.5px; color: #B05A78; cursor: pointer; padding: 2px 4px; } .td-more[open] summary { margin-bottom: 6px; }
 .td-more .td-row { margin-top: 6px; }
+
+/* ───── v8: 외래 진료시간 자세히 ───── */
+.hrs-sum { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 10px; }
+.hrs-sum span { padding: 5px 10px; border-radius: 999px; background: var(--bg); font-size: 13px; }
+.hrs-sum b { color: var(--brand); margin-right: 2px; }
+.hb-scale { display: flex; justify-content: space-between; margin: 0 0 2px 46px; font-size: 10px; color: var(--muted); }
+.hb-scale span:nth-child(2) { margin-left: 8%; } .hb-scale span:nth-child(3) { margin-right: 8%; }
+.hrs { display: grid; gap: 2px; }
+.hr { display: grid; grid-template-columns: 40px 1fr; gap: 6px; padding: 7px 6px; border-radius: 14px; }
+.hr.today { background: var(--brand-soft, #E7F6F1); }
+.hr-d { font-weight: 800; font-size: 14px; text-align: center; line-height: 1.2; }
+.hr-d small { display: block; font-size: 10px; color: var(--brand); font-weight: 800; }
+.hr.off .hr-d, .hr.off .hr-t { color: var(--muted); }
+.hr-t { font-size: 14px; font-weight: 700; } .hr.today .hr-t { color: var(--brand); }
+.hr-note { font-weight: 400; font-size: 12px; color: var(--muted); }
+.hb { position: relative; height: 10px; margin-top: 5px; border-radius: 999px; background: repeating-linear-gradient(90deg, var(--line) 0 1px, transparent 1px 31.25%), var(--bg); overflow: hidden; }
+.hb i { position: absolute; top: 0; bottom: 0; border-radius: 999px; }
+.hb .hb-open { background: linear-gradient(90deg, #5FCFB9, #12897A); }
+.hb .hb-lunch { background: repeating-linear-gradient(45deg, #FFD166 0 4px, #FFE7A3 4px 8px); border-radius: 0; }
+.hb .hb-now { width: 3px; margin-left: -1px; background: #E8475F; border-radius: 2px; box-shadow: 0 0 0 2px rgba(255,255,255,.8); }
+.hr.off .hb { opacity: .6; }
+.hr-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+.hr-tags em { font-style: normal; font-size: 11px; padding: 2px 7px; border-radius: 999px; background: var(--bg); color: var(--muted); }
+.hr-tags em.late { background: #EEEDFF; color: #5B58D6; } .hr-tags em.early { background: #FFF4D6; color: #8A6A12; } .hr-tags em.rcv { background: #FFECEF; color: #C2334A; }
+.hrs-legend { display: flex; gap: 12px; margin: 8px 6px 0; font-size: 11px; color: var(--muted); }
+.hrs-legend i { display: inline-block; width: 14px; height: 8px; border-radius: 4px; margin-right: 4px; vertical-align: middle; }
+.lg-open { background: #12897A; } .lg-lunch { background: repeating-linear-gradient(45deg, #FFD166 0 3px, #FFE7A3 3px 6px); } .lg-now { width: 3px !important; background: #E8475F; }
+.hrs-tip { margin: 8px 6px 0; font-size: 12px; color: var(--muted); line-height: 1.5; }
+.hrs-empty { padding: 12px; border-radius: 14px; background: var(--bg); font-size: 13.5px; color: var(--muted); }
+.hol-week { margin-top: 10px; padding: 10px 12px; border-radius: 16px; background: #FFF8E6; display: grid; gap: 4px; font-size: 13px; }
+.hw-h { font-weight: 800; font-size: 13px; } .hol-week .ok { color: var(--brand); font-weight: 700; } .hol-week .no { color: var(--red); font-weight: 700; }
+@media (prefers-color-scheme: dark) {
+  .hr-tags em.late { background: #2A2A55; color: #C3C1FF; } .hr-tags em.early { background: var(--butter-soft); color: #F0D080; } .hr-tags em.rcv { background: #3A1E26; color: #FFB3C0; }
+  .hb .hb-now { box-shadow: 0 0 0 2px rgba(0,0,0,.5); }
+  .hol-week { background: var(--butter-soft); }
+}
+.hb-scale { position: relative; height: 14px; margin: 0 6px 2px 52px; display: block; }
+.hb-scale span { position: absolute; top: 0; transform: translateX(-50%); margin: 0 !important; }
+.hb-scale span:first-child { transform: none; }
+.hr-d.sm { font-size: 11.5px; padding-top: 2px; }
+.hb-scale span { white-space: nowrap; } .hb-scale span:last-child { transform: translateX(-70%); }

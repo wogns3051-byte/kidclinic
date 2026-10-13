@@ -135,7 +135,8 @@
       o.url = r.u || ''; o.park = r.pk || ''; o.trans = r.tr || []; o.plc = r.pl || '';
       var keys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'], hours = null;
       if (r.h) { hours = {}; keys.forEach(function (k, i) { hours[k] = span(r.h[i]); }); }
-      o.detail = r.h ? { hours: hours, lunch: r.l || '', lunchSat: r.ls || '', holiNote: r.hn || '', sunNote: r.sn || '', src: r.hs === 'n' ? '국립중앙의료원' : '' } : null;
+      o.detail = r.h ? { hours: hours, lunch: r.l || '', lunchSat: r.ls || '', holiNote: r.hn || '', sunNote: r.sn || '', src: r.hs === 'n' ? '국립중앙의료원' : '',
+        rcvWeek: r.rw || '', rcvSat: r.rs || '', holiOpen: !!r.ho, holiHours: r.hh ? span(r.hh) : (r.ho ? span(r.h[0]) : null), holiExact: !!r.hh } : null;
     }
     return o;
   }
@@ -423,6 +424,77 @@
         : '<div class="ap-h">진료가 끝나는 ' + fmtT(endT) + ' 뒤에도 여는 약국이 1km 안에 없어요.</div><div class="ap-tip">약국 탭에서 "밤 10시 이후"로 더 넓게 찾아보세요.</div>';
     }).catch(function () { box.innerHTML = '<div class="ap-tip">약국 정보를 불러오지 못했어요.</div>'; });
   }
+  // ───── 외래 진료시간 자세히: 한 줄 요약 + 요일별 시간 막대(점심·지금) + 접수 마감 + 이번 주 공휴일 ─────
+  var BAR_FROM = 700, BAR_TO = 2300;
+  function toMin(t) { return Math.floor(t / 100) * 60 + t % 100; }
+  function pct(t) { var a = toMin(BAR_FROM), b = toMin(BAR_TO); return Math.max(0, Math.min(100, (toMin(t) - a) / (b - a) * 100)); }
+  function rcvEnd(v) {
+    var m = /(\d{1,2})\s*[:시]\s*(\d{2})?\s*분?\s*$/.exec(String(v || '').replace(/\s*(까지|마감)\s*$/, '').trim());
+    var q = /[~\-–]\s*(\d{1,2})\s*[:시]?\s*(\d{2})?/.exec(String(v || ''));
+    var x = q || m; if (!x) return null;
+    var hh = +x[1], mm = +(x[2] || 0); if (hh > 24 || mm > 59) return null;
+    return hh * 100 + mm;
+  }
+  function hoursBlock(d, todayKey) {
+    if (!d.hours) return '<div class="hrs-empty">진료시간 정보가 아직 없어요. 전화로 확인해 주세요.</div>';
+    var now = kstNow(), nowT = now.hhmm;
+    var txt = function (t) { return t ? fmt(t[0]) + '~' + fmt(t[1]) : '휴진'; };
+    // 한 줄 요약 (같은 시간끼리 묶기)
+    var groups = [];
+    DAY_ORDER.forEach(function (k) {
+      var v = txt(d.hours[k]), g = groups[groups.length - 1];
+      if (g && g.v === v) g.days.push(k); else groups.push({ v: v, days: [k] });
+    });
+    var summary = groups.map(function (g) {
+      var a = DAY_LABEL[g.days[0]], b = DAY_LABEL[g.days[g.days.length - 1]];
+      var lbl = g.days.length === 5 && g.days[0] === 'mon' ? '평일' : g.days.length > 2 ? a + '~' + b : g.days.map(function (x) { return DAY_LABEL[x]; }).join('·');
+      return '<span><b>' + lbl + '</b> ' + g.v + '</span>';
+    }).join('');
+    var lunchW = parseLunch(d.lunch), lunchS = parseLunch(d.lunchSat), lastTags = '';
+    var rcvW = rcvEnd(d.rcvWeek), rcvS = rcvEnd(d.rcvSat);
+    var row = function (key, label, t, lunch, rcv, isToday, note) {
+      var bar = '';
+      if (t) {
+        bar += '<i class="hb-open" style="left:' + pct(t[0]) + '%;width:' + Math.max(1.5, pct(t[1]) - pct(t[0])) + '%"></i>';
+        if (lunch && lunch[0] >= t[0] && lunch[1] <= t[1]) bar += '<i class="hb-lunch" style="left:' + pct(lunch[0]) + '%;width:' + (pct(lunch[1]) - pct(lunch[0])) + '%"></i>';
+      }
+      if (isToday && nowT >= BAR_FROM && nowT <= BAR_TO) bar += '<i class="hb-now" style="left:' + pct(nowT) + '%"></i>';
+      var tags = [];
+      if (t && t[0] <= 830) tags.push('<em class="early">아침 일찍</em>');
+      if (t && t[1] >= 2000) tags.push('<em class="late">저녁 ' + fmt(t[1]) + '</em>');
+      if (lunch && t) tags.push('<em>점심 ' + fmt(lunch[0]) + '~' + fmt(lunch[1]) + '</em>');
+      if (rcv && t && rcv < t[1]) tags.push('<em class="rcv">접수 ' + fmt(rcv) + '까지</em>');
+      var tagHtml = tags.join('');
+      if (!isToday && tagHtml && tagHtml === lastTags) tagHtml = ''; else if (!isToday) lastTags = tagHtml;
+      return '<div class="hr' + (isToday ? ' today' : '') + (t ? '' : ' off') + '"><div class="hr-d' + (label.length > 1 ? ' sm' : '') + '">' + label + (isToday ? '<small>오늘</small>' : '') + '</div>' +
+        '<div class="hr-m"><div class="hr-t">' + txt(t) + (note ? ' <span class="hr-note">' + esc(note) + '</span>' : '') + '</div><div class="hb">' + bar + '</div>' + (tagHtml ? '<div class="hr-tags">' + tagHtml + '</div>' : '') + '</div></div>';
+    };
+    var holiToday = !!(KC.db && KC.db.holis && KC.db.holis[now.date]);
+    var html = '<div class="hrs-sum">' + summary + '</div>' +
+      '<div class="hb-scale">' + [700, 1200, 1700, 2200].map(function (t) { return '<span style="left:' + pct(t) + '%">' + (t / 100) + '시</span>'; }).join('') + '</div>' +
+      '<div class="hrs">' + DAY_ORDER.map(function (k) {
+        var isSat = k === 'sat';
+        return row(k, DAY_LABEL[k], d.hours[k], isSat ? lunchS : (k === 'sun' ? null : lunchW), isSat ? rcvS : (k === 'sun' ? null : rcvW), k === todayKey && !holiToday, k === 'sun' && d.sunNote && !/휴진|휴무/.test(d.sunNote) ? d.sunNote : '');
+      }).join('') +
+      row('holi', '공휴일', d.holiOpen ? d.holiHours : null, null, null, holiToday, d.holiOpen && !d.holiExact ? '시간은 전화 확인' : (d.holiNote && !/휴진|휴무/.test(d.holiNote) ? d.holiNote : '')) + '</div>' +
+      '<div class="hrs-legend"><span><i class="lg-open"></i>진료</span><span><i class="lg-lunch"></i>점심시간</span><span><i class="lg-now"></i>지금</span></div>' +
+      '<div class="hrs-tip">' + (rcvW || rcvS ? '접수 마감은 병원이 신고한 접수시간이에요. ' : '소아과는 보통 진료 끝나기 30분 전쯤 접수를 마감해요. ') + '점심시간 직전·진료 마감 직전은 접수가 막힐 수 있어요.</div>';
+    return html;
+  }
+  function holWeek(h) {
+    var box = document.getElementById('hol-week'); if (!box || !h.detail) return;
+    getDB().then(function (db) {
+      var out = [], base = Date.now() + 9 * 3600000;
+      for (var i = 0; i < 14; i++) {
+        var dd = new Date(base + i * 86400000), ds = dd.toISOString().slice(0, 10);
+        if (!db.holis[ds]) continue;
+        var t = h.detail.holiOpen ? h.detail.holiHours : null;
+        out.push('<div class="hw"><b>' + (dd.getUTCMonth() + 1) + '/' + dd.getUTCDate() + '(' + '일월화수목금토'[dd.getUTCDay()] + ')' + (i === 0 ? ' 오늘' : '') + '</b> 공휴일 · ' +
+          (t ? '<span class="ok">' + fmt(t[0]) + '~' + fmt(t[1]) + ' 진료' + (h.detail.holiExact ? '' : ' (시간 확인 필요)') + '</span>' : '<span class="no">휴진</span>') + '</div>');
+      }
+      box.innerHTML = out.length ? '<div class="hol-week"><div class="hw-h">📅 다가오는 공휴일 (2주 안)</div>' + out.join('') + '</div>' : '';
+    }).catch(function () {});
+  }
   function openDetail(id) {
     $('#sheet-body').innerHTML = '<div class="spinner">불러오는 중…</div>';
     $('#sheet').hidden = false; $('#sheet-bg').hidden = false;
@@ -431,15 +503,7 @@
       var isFav = favs.indexOf(h.id) >= 0;
       var todayKey = DOW_KEY[new Date().getDay()];
       var d = h.detail || {};
-      var rows = d.hours ? DAY_ORDER.map(function (k) {
-        var t = d.hours[k];
-        return '<tr class="' + (k === todayKey ? 'today' : '') + '"><td>' + DAY_LABEL[k] + '요일</td><td>' + (t ? fmt(t[0]) + ' ~ ' + fmt(t[1]) : '휴진') + '</td></tr>';
-      }).join('') : '<tr><td colspan="2">진료시간 정보가 아직 없어요. 전화로 확인해 주세요.</td></tr>';
-      var extra = [];
-      if (d.lunch) extra.push('평일 점심시간: ' + esc(d.lunch));
-      if (d.lunchSat) extra.push('토요일 점심시간: ' + esc(d.lunchSat));
-      if (d.holiNote) extra.push('공휴일: ' + esc(d.holiNote));
-      if (d.sunNote) extra.push('일요일: ' + esc(d.sunNote));
+      var rows = hoursBlock(d, todayKey);
       var tel = (h.tel || '').replace(/[^0-9]/g, '');
       var hasPos = h.lat != null;
       var kakao = hasPos ? 'https://map.kakao.com/link/to/' + encodeURIComponent(h.name) + ',' + h.lat + ',' + h.lng
@@ -463,16 +527,16 @@
         (h.er ? '<div class="er-box"><b>야간 응급실 운영' + (h.erLevel ? ' · ' + esc(h.erLevel) : '') + '</b>외래 진료가 끝난 뒤에는 응급실로 받아요. 응급실 비용이 더 들고, 소아 전문의가 없을 수 있어요.' +
           (h.erTel ? '<a class="btn" href="tel:' + h.erTel.replace(/[^0-9]/g, '') + '">응급실 전화 ' + esc(h.erTel) + '</a>' : '') + bedsLink('ghost') + '</div>' : '') +
         (hasPos && h.when && (h.when.kind === 'open' || h.when.kind === 'lunch') ? '<div class="sub-h">℞ 진료 끝나고 약 살 곳</div><div id="after-pharm" class="after-ph"><div class="spinner small">찾는 중…</div></div>' : '') +
-        '<div class="sub-h">외래 진료시간</div><table class="hours">' + rows + '</table>' +
+        '<div class="sub-h">외래 진료시간</div>' + rows + '<div id="hol-week"></div>' +
         (h.plc || h.park || (h.trans && h.trans.length) ? '<div class="sub-h">찾아가는 길</div><div class="way">' +
           (h.plc ? '<div>📍 ' + esc(h.plc) + '</div>' : '') +
           (h.park ? '<div>🅿️ ' + esc(h.park) + '</div>' : '') +
           (h.trans || []).map(function (t) { return '<div>' + (/지하철|전철/.test(t) ? '🚇 ' : '🚌 ') + esc(t) + '</div>'; }).join('') + '</div>' : '') +
-        (extra.length ? '<div class="note">' + extra.join('<br>') + '</div>' : '') +
         (h.doctors ? '<div class="note">의사 수 ' + h.doctors + '명</div>' : '') +
         (REPORT_URL ? '<button class="btn ghost report" id="report-btn">정보가 달라요</button>' : '') +
         '<div class="note">진료시간·휴진은 병원 사정으로 바뀔 수 있어요. 방문 전 꼭 전화로 확인하세요.<br>자료: 건강보험심사평가원 병원정보서비스' + (d.src ? ' · 진료시간: ' + d.src : '') + (h.moonlight ? ' · 달빛어린이병원: 국립중앙의료원' : '') + '</div>';
       if ($('#after-pharm')) afterPharm(h, $('#after-pharm'));
+      holWeek(h);
       $('#share-btn').addEventListener('click', function () {
         var tk = d.hours ? d.hours[todayKey] : null;
         KC.shareText(h.name,

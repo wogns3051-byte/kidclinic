@@ -8,7 +8,7 @@ const assert = require('assert');
 
 const H = [
   { ykiho: 'A1', yadmNm: '김천튼튼소아청소년과의원', clCdNm: '의원', sidoCd: '370000', sidoCdNm: '경북', sgguCd: '370100', sgguCdNm: '김천시', addr: '경북 김천시 A로 1', telno: '054-000-0001', XPos: '128.1131234567', YPos: '36.139', drTotCnt: '2',
-    d: { trmtMonStart: '0900', trmtMonEnd: '2100', trmtSunStart: '1000', trmtSunEnd: '1700', noTrmtHoli: '정상진료', lunchWeek: '13:00~14:00', emyNgtYn: 'Y', emyNgtTelNo1: '054-000-9999', parkQty: '12', parkXpnsYn: 'N', plcNm: '김천역', plcDir: '정문 맞은편', plcDist: '100m' } },
+    d: { trmtMonStart: '0900', trmtMonEnd: '2100', trmtSunStart: '1000', trmtSunEnd: '1700', noTrmtHoli: '정상진료', lunchWeek: '13:00~14:00', emyNgtYn: 'Y', emyNgtTelNo1: '054-000-9999', parkQty: '12', parkXpnsYn: 'N', plcNm: '김천역', plcDir: '정문 맞은편', plcDist: '100m', rcvWeek: '08:30~20:30', rcvSat: '09:00~12:30' } },
   { ykiho: 'A2', yadmNm: '구미아동병원', clCdNm: '병원', sidoCd: '370000', sidoCdNm: '경북', sgguCd: '370200', sgguCdNm: '구미시', addr: '경북 구미시 B로 2', telno: '054-000-0002', XPos: '128.344', YPos: '36.119',
     d: { trmtMonStart: '900', trmtMonEnd: '1800', noTrmtHoli: '휴진' } },
   { ykiho: 'C1', yadmNm: '튼튼가정의원', clCdNm: '의원', sidoCd: '370000', sidoCdNm: '경북', sgguCd: '370100', sgguCdNm: '김천시', addr: '경북 김천시 D로 4', telno: '054-000-0004', XPos: '128.12', YPos: '36.13', d: null },
@@ -148,6 +148,7 @@ const mock = http.createServer((req, res) => {
   ok(c1.k === 1 && c1.sd === 1 && !c1.tr, '이름에 소아 없어도 소아청소년과 전문의 있으면 소아과로 분류');
   ok(transCalls >= 2 && sdrCalls >= 4, '교통·전문의 조회');
   ok(a1.pl === '김천역 정문 맞은편 100m', '위치 안내');
+  ok(a1.rw === '08:30~20:30' && a1.rs === '09:00~12:30', '접수시간');
   const lb = JSON.parse(fs.readFileSync(path.join(root, 'docs', 'data', 'lb', '370000.json'), 'utf8'));
   ok(lb.sg['370100'] && lb.sg['370100'][0].n === '김천시 출산축하금' && lb.sg['370100'][0].u === 'https://www.gov.kr/x', '지역 혜택: 시·군·구별 출산·육아');
   ok(lb.all.length === 1 && lb.all[0].n === '경상북도 다자녀 지원', '지역 혜택: 도 전체');
