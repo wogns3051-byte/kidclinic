@@ -28,12 +28,12 @@
 <meta name="apple-mobile-web-app-title" content="아이아플때">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-<link rel="stylesheet" href="style.css?v=20">
+<link rel="stylesheet" href="style.css?v=21">
 </head>
 <body>
 <header class="top">
   <div class="brand"><img class="logo-img" src="icons/icon-192.png" alt=""> 아이아플때</div>
-  <div class="sub" id="updated"></div>
+  <div class="top-r"><span class="sub" id="updated"></span><button class="fontbtn" id="font-btn" aria-label="글씨 크게">가+</button></div>
 </header>
 
 <div class="public-note">🏛 공공데이터 기반으로 만든 무료 서비스예요</div>
@@ -46,6 +46,8 @@
 <main>
   <!-- 지역 -->
   <section class="tab" id="tab-region">
+    <div id="holiday-banner" hidden></div>
+    <div id="open-near" class="open-near"></div>
     <div class="panel">
       <div class="row">
         <select id="sido" aria-label="시도"><option value="">시·도 선택</option></select>
@@ -142,9 +144,18 @@
     <ul class="list" id="ph-list"></ul>
   </section>
 
-  <!-- 혜택 -->
+  <!-- 우리아이: 해열제 기록 · 응급 카드 · 혜택 -->
   <section class="tab" id="tab-benefit" hidden>
-    <div id="benefit-body"><div class="spinner">불러오는 중…</div></div>
+    <div class="panel">
+      <div class="seg" id="kid-seg">
+        <button class="on" data-k="med">💊 해열제 기록</button>
+        <button data-k="card">🪪 응급 카드</button>
+        <button data-k="bn">♡ 혜택</button>
+      </div>
+    </div>
+    <div id="kid-med" class="kid-pane"></div>
+    <div id="kid-card" class="kid-pane" hidden></div>
+    <div id="benefit-body" class="kid-pane" hidden><div class="spinner">불러오는 중…</div></div>
   </section>
 
   <!-- 즐겨찾기 -->
@@ -161,7 +172,7 @@
   <button data-tab="night"><span class="ic">☾</span>야간·휴일</button>
   <button data-tab="pharm"><span class="ic">℞</span>약국</button>
   <a class="nav-er" id="beds-top" href="https://mediboard.nemc.or.kr/emergency_room_in_hand" target="_blank" rel="noopener"><span class="ic">✚</span>응급병상</a>
-  <button data-tab="benefit"><span class="ic">♡</span>혜택</button>
+  <button data-tab="benefit"><span class="ic">♡</span>우리아이</button>
 </nav>
 
 <!-- 상세 -->
@@ -175,7 +186,8 @@
 <div class="toast" id="toast" hidden></div>
 
 <script src="vendor/leaflet/leaflet.js"></script>
-<script src="config.js?v=20"></script>
-<script src="app.js?v=20"></script>
+<script src="config.js?v=21"></script>
+<script src="app.js?v=21"></script>
+<script src="kid.js?v=21"></script>
 </body>
 </html>

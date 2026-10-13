@@ -385,6 +385,7 @@
           '<button class="btn ghost" id="fav-btn">' + (isFav ? '★ 즐겨찾기 해제' : '☆ 즐겨찾기') + '</button>' +
           (h.url ? '<a class="btn ghost wide" href="' + esc(/^https?:/.test(h.url) ? h.url : 'http://' + h.url) + '">병원 홈페이지</a>' : '') +
           (hasPos ? '<button class="btn ghost wide" id="near-pharm-btn">℞ 이 병원 근처 약국</button>' : '') +
+          '<button class="btn ghost wide" id="share-btn">📤 카톡으로 이 병원 보내기</button>' +
         '</div>' +
         (h.er ? '<div class="er-box"><b>야간 응급실 운영' + (h.erLevel ? ' · ' + esc(h.erLevel) : '') + '</b>외래 진료가 끝난 뒤에는 응급실로 받아요. 응급실 비용이 더 들고, 소아 전문의가 없을 수 있어요.' +
           (h.erTel ? '<a class="btn" href="tel:' + h.erTel.replace(/[^0-9]/g, '') + '">응급실 전화 ' + esc(h.erTel) + '</a>' : '') + bedsLink('ghost') + '</div>' : '') +
@@ -393,6 +394,13 @@
         (h.doctors ? '<div class="note">의사 수 ' + h.doctors + '명</div>' : '') +
         (REPORT_URL ? '<button class="btn ghost report" id="report-btn">정보가 달라요</button>' : '') +
         '<div class="note">진료시간·휴진은 병원 사정으로 바뀔 수 있어요. 방문 전 꼭 전화로 확인하세요.<br>자료: 건강보험심사평가원 병원정보서비스' + (d.src ? ' · 진료시간: ' + d.src : '') + (h.moonlight ? ' · 달빛어린이병원: 국립중앙의료원' : '') + '</div>';
+      $('#share-btn').addEventListener('click', function () {
+        var tk = d.hours ? d.hours[todayKey] : null;
+        KC.shareText(h.name,
+          h.name + '\n' + h.addr + (h.tel ? '\n☎ ' + h.tel : '') +
+          (d.hours ? '\n오늘 진료 ' + (tk ? fmt(tk[0]) + '~' + fmt(tk[1]) : '휴진') : '') +
+          '\n길찾기 ' + kakao + '\n\n(방문 전 전화로 확인하세요 · 아이아플때)');
+      });
       var rb = $('#report-btn');
       if (rb) rb.addEventListener('click', function () {
         var u = REPORT_URL.replace('{name}', encodeURIComponent(h.name)).replace('{addr}', encodeURIComponent(h.addr || ''));
@@ -495,10 +503,14 @@
       '<div class="actions">' +
         (tel ? '<a class="btn" href="tel:' + tel + '">📞 전화하기</a>' : '<span class="btn ghost">전화번호 없음</span>') +
         '<a class="btn" href="https://map.kakao.com/link/to/' + encodeURIComponent(p.n) + ',' + p.y + ',' + p.x + '">카카오맵 길찾기</a>' +
+        '<button class="btn ghost wide" id="ph-share">📤 카톡으로 이 약국 보내기</button>' +
       '</div>' +
       '<div class="sub-h">영업시간</div><table class="hours">' + rows + '</table>' +
       '<div class="note">영업시간은 바뀔 수 있어요. 방문 전 전화로 확인하세요.<br>자료: 국립중앙의료원 전국 약국 정보</div>';
     $('#sheet').hidden = false; $('#sheet-bg').hidden = false;
+    $('#ph-share').addEventListener('click', function () {
+      KC.shareText(p.n, p.n + '\n' + p.a + (p.p ? '\n☎ ' + p.p : '') + '\n길찾기 https://map.kakao.com/link/to/' + encodeURIComponent(p.n) + ',' + p.y + ',' + p.x + '\n\n(방문 전 전화로 확인하세요 · 아이아플때)');
+    });
   }
   $$('#ph-mode button').forEach(function (b) {
     b.addEventListener('click', function () { phMode = b.dataset.m; loadPharm(); });
@@ -547,13 +559,14 @@
     var b = e.target.closest && e.target.closest('[data-go-tab]');
     if (!b) return;
     var tab = b.dataset.goTab, f = b.dataset.goFilter;
+    if (b.dataset.goPane) showOpt = { pane: b.dataset.goPane };
     if (f) $$('.chips[data-for="' + tab + '"] .chip').forEach(function (c) { c.classList.toggle('on', c.dataset.f === f); });
     loaded[tab] = 0;
     show(tab);
   });
 
   // ───── 탭 전환 ─────
-  var current = 'region', loaded = {};
+  var current = 'region', loaded = {}, showOpt = null;
   function show(tab) {
     current = tab;
     $$('.bottom button').forEach(function (b) { b.classList.toggle('on', b.dataset.tab === (tab === 'fav' ? 'region' : tab)); });
@@ -563,11 +576,17 @@
     if (tab === 'night' && !loaded.night) { loaded.night = 1; loadNight(); }
     if (tab === 'fav') loadFav();
     if (tab === 'pharm') loadPharm();
-    if (tab === 'benefit') loadBenefit();
+    if (tab === 'benefit') { if (KC.onShow.benefit) KC.onShow.benefit(showOpt); else loadBenefit(); }
+    showOpt = null;
   }
   $$('.bottom button').forEach(function (b) { b.addEventListener('click', function () { show(b.dataset.tab); }); });
   // 안드로이드 뒤로가기: 시트가 열려 있으면 닫기
   document.addEventListener('backbutton', function (e) { if (!$('#sheet').hidden) { e.preventDefault(); closeSheet(); } });
+
+  // ───── kid.js 에 도구 넘기기 ─────
+  var KC = window.KC = { $: $, $$: $$, esc: esc, load: load, save: save, toast: toast, api: api, show: show,
+    getDB: getDB, kstNow: kstNow, locate: locate, card: card, loadBenefit: loadBenefit, onShow: {},
+    shareText: function (t, x) { if (navigator.share) navigator.share({ title: t, text: x }).catch(function () {}); else if (navigator.clipboard) navigator.clipboard.writeText(x).then(function () { toast('복사했어요'); }); } };
 
   // ───── 시작 ─────
   api('/regions').then(function (d) {
