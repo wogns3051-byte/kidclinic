@@ -470,17 +470,68 @@
   }
 
   // ───── 탭: 즐겨찾기 ─────
+  var favMode = load('favMode', 'fav'), memoTag = -1, memoQ = '';
   function loadFav() {
-    var list = $('#fav-list'), cnt = $('#fav-count');
-    if (!favs.length) { list.innerHTML = '<li class="empty"><b>즐겨찾기한 병원이 없어요</b>병원 상세에서 ☆ 를 눌러 추가하세요.</li>'; cnt.textContent = ''; return; }
+    var list = $('#fav-list'), cnt = $('#fav-count'), tools = $('#memo-tools');
+    var all = memos(), memoIds = Object.keys(all);
+    $$('#fav-seg button').forEach(function (b) {
+      b.classList.toggle('on', b.dataset.fm === favMode);
+      b.textContent = b.dataset.fm === 'fav' ? '★ 즐겨찾기 ' + favs.length : '📝 내 메모 ' + memoIds.length;
+    });
+    if (favMode === 'fav') {
+      tools.innerHTML = '';
+      if (!favs.length) { list.innerHTML = '<li class="empty"><b>즐겨찾기한 병원이 없어요</b>병원 상세에서 ☆ 를 눌러 추가하세요.</li>'; cnt.textContent = ''; return; }
+      loading(list, cnt);
+      var p = { ids: favs.join(','), limit: 100 };
+      if (myPos) { p.lat = myPos.lat; p.lng = myPos.lng; }
+      api('/hospitals', p).then(function (d) { render(list, cnt, d); }).catch(function (e) { fail(list, e); });
+      return;
+    }
+    // 📝 내 메모만 모아 보기
+    if (!memoIds.length) {
+      tools.innerHTML = '';
+      list.innerHTML = '<li class="empty"><b>메모한 병원이 없어요</b>병원 상세 맨 아래 📝 내 메모에서 "귀·코 잘 봐줘요" 같은 태그나 글을 남겨 보세요.</li>'; cnt.textContent = ''; return;
+    }
+    var used = {};
+    memoIds.forEach(function (id) { (all[id].t || []).forEach(function (i) { used[i] = (used[i] || 0) + 1; }); });
+    tools.innerHTML = '<div class="memo-filter"><button class="chip' + (memoTag < 0 ? ' on' : '') + '" data-mtag="-1">전체</button>' +
+      Object.keys(used).sort(function (x, y) { return used[y] - used[x]; }).map(function (i) { return '<button class="chip' + (memoTag === +i ? ' on' : '') + '" data-mtag="' + i + '">' + esc(MEMO_TAGS[i]) + ' ' + used[i] + '</button>'; }).join('') + '</div>' +
+      '<input class="vis-q memo-q" id="memo-q" placeholder="🔍 메모 글 찾기 (예: 중이염, 선생님 이름)" value="' + esc(memoQ) + '">' +
+      '<div class="memo-act"><button class="chip" id="memo-share">📤 내 메모 목록 보내기</button></div>';
+    var ids = memoIds.filter(function (id) {
+      var m = all[id];
+      if (memoTag >= 0 && (m.t || []).indexOf(memoTag) < 0) return false;
+      if (memoQ && (m.x || '').indexOf(memoQ) < 0 && !(m.t || []).some(function (i) { return (MEMO_TAGS[i] || '').indexOf(memoQ) >= 0; })) return false;
+      return true;
+    });
+    $$('#memo-tools [data-mtag]').forEach(function (c) { c.addEventListener('click', function () { memoTag = +c.dataset.mtag; loadFav(); }); });
+    var qi = $('#memo-q'); qi.addEventListener('input', function () { memoQ = qi.value.trim(); clearTimeout(qi._t); qi._t = setTimeout(function () { loadFav(); var q2 = $('#memo-q'); if (q2) { q2.focus(); q2.setSelectionRange(q2.value.length, q2.value.length); } }, 300); });
+    if (!ids.length) { list.innerHTML = '<li class="empty"><b>맞는 메모가 없어요</b>다른 태그를 골라 보세요.</li>'; cnt.textContent = ''; bindMemoShare(all, memoIds); return; }
     loading(list, cnt);
-    var p = { ids: favs.join(','), limit: 100 };
-    if (myPos) { p.lat = myPos.lat; p.lng = myPos.lng; }
-    api('/hospitals', p).then(function (d) { render(list, cnt, d); }).catch(function (e) { fail(list, e); });
+    api('/hospitals', { ids: ids.join(','), limit: 300 }).then(function (d) {
+      d.items.sort(function (x, y) { return (all[y.id].at || '') < (all[x.id].at || '') ? -1 : 1; });
+      render(list, cnt, d);
+      cnt.textContent = '메모한 병원 ' + d.total + '곳 · 최근 메모 순';
+    }).catch(function (e) { fail(list, e); });
+    bindMemoShare(all, memoIds);
   }
+  function bindMemoShare(all, memoIds) {
+    var b = $('#memo-share'); if (!b) return;
+    b.addEventListener('click', function () {
+      getDB().then(function (db) {
+        var lines = memoIds.map(function (id) {
+          var r = db.byId[id], m = all[id];
+          return '• ' + (r ? r.n : '병원') + (r && r.p ? ' (' + r.p + ')' : '') + '\n  ' + (m.t || []).map(function (i) { return MEMO_TAGS[i]; }).join(', ') + (m.x ? (m.t && m.t.length ? ' / ' : '') + m.x : '');
+        });
+        if (!confirm('내 메모 목록을 보낼까요?\n받는 사람에게 메모 내용이 그대로 보여요.')) return;
+        KC.shareText('내 병원 메모', '[아이아플때 · 내 병원 메모]\n' + lines.join('\n') + '\n\n- 아이아플때 앱');
+      });
+    });
+  }
+  $$('#fav-seg button').forEach(function (b) { b.addEventListener('click', function () { favMode = b.dataset.fm; save('favMode', favMode); loadFav(); }); });
 
   // ───── 상세 시트 ─────
-  function closeSheet() { $('#sheet').hidden = true; $('#sheet-bg').hidden = true; }
+  function closeSheet() { var was = !$('#sheet').hidden; $('#sheet').hidden = true; $('#sheet-bg').hidden = true; if (was && current === 'fav' && favMode === 'memo') loadFav(); }
   $('#sheet-bg').addEventListener('click', closeSheet);
   $('#sheet-x').addEventListener('click', closeSheet);
   // 이 병원 진료가 끝나는 시각 뒤에도 문 여는 1km 안 약국

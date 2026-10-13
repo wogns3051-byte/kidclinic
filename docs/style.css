@@ -1049,3 +1049,7 @@ html.daytime .brand-wrap .sub { color: rgba(255,255,255,.9); }
 .memo-box textarea { border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; font-size: 15px; background: var(--bg); color: var(--ink); font-family: inherit; resize: vertical; }
 .memo-box .priv { margin: 0; }
 @media (prefers-color-scheme: dark) { .tag.also { background: #1B2A4A; color: #9CC8FF; } .memo-line { background: var(--butter-soft); color: #F0D080; } }
+.fav-seg { margin: 10px 12px 0; } .fav-seg button { font-size: 13.5px; }
+.memo-filter { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 12px 0; } .memo-filter .chip { height: 32px; font-size: 12.5px; }
+.memo-q { margin-top: 8px !important; }
+.memo-act { margin: 8px 12px 0; } .memo-act .chip { height: 32px; font-size: 12.5px; }
