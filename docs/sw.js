@@ -1,6 +1,6 @@
 // 오프라인 대비: 화면 파일은 저장해 두고, 자료(data/)는 항상 최신을 먼저 시도
-const CACHE = 'kidclinic-v4';
-const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'kid.js', 'config.js', 'manifest.webmanifest',
+const CACHE = 'kidclinic-v5';
+const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'kid.js', 'config.js', 'privacy.html', 'manifest.webmanifest',
   'icons/icon-192.png', 'vendor/leaflet/leaflet.js', 'vendor/leaflet/leaflet.css'];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

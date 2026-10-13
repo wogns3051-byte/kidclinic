@@ -243,3 +243,7 @@ html.big .brand { font-size: 20px; }
 .ec-row:last-child { border-bottom: 0; }
 .ec-row span { color: var(--muted); font-size: 13px; }
 .ec-row.danger b { color: var(--red); }
+.priv { margin: 10px 16px 4px; padding: 9px 12px; border-radius: 10px; background: #eef2f6; color: #3d4f63; font-size: 12.5px; line-height: 1.5; }
+.panel .priv { margin: 0; }
+.priv a, .foot a { color: inherit; text-decoration: underline; }
+.priv b { color: #23384d; }

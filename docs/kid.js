@@ -26,6 +26,16 @@
     prompt('아래 내용을 복사하세요', text);
   }
   K.shareText = shareText;
+  // 개인정보 안내 (아이 정보·기록·위치가 나오는 곳마다 붙인다)
+  var PRIV = {
+    kid: '🔒 아이 정보와 기록은 <b>이 휴대폰에만</b> 저장되고 어디에도 보내지 않아요. 휴대폰을 바꾸거나 브라우저 기록을 지우면 사라져요. <a href="privacy.html">개인정보 처리방침</a>',
+    loc: '🔒 위치는 가까운 곳을 찾는 데만 휴대폰 안에서 쓰고 저장하지 않아요. <a href="privacy.html">자세히</a>'
+  };
+  K.PRIV = PRIV;
+  function privNote(k) { return '<div class="priv">' + PRIV[k] + '</div>'; }
+  function confirmShare(what) {
+    return confirm(what + '에는 아이 이름·생년월일 같은 개인정보가 들어 있어요.\n받는 사람을 꼭 확인하고 보내 주세요.\n\n계속할까요?');
+  }
 
   // ───── 아이 목록 ─────
   function kids() { return load('kids', { list: [], cur: '' }); }
@@ -56,7 +66,7 @@
     if (b) { var k = kids(); k.cur = b.dataset.kid; saveKids(k); render(b.dataset.where); return; }
     var a = e.target.closest && e.target.closest('[data-kid-add]');
     if (a) {
-      var name = (prompt('아이 이름(또는 별명)을 적어 주세요') || '').trim();
+      var name = (prompt('아이 이름(또는 별명)을 적어 주세요\n(이 휴대폰에만 저장돼요. 별명도 괜찮아요)') || '').trim();
       if (!name) return;
       var k2 = kids(), id = uid();
       k2.list.push({ id: id, name: name.slice(0, 12) }); k2.cur = id; saveKids(k2);
@@ -115,8 +125,8 @@
     var box = $('#kid-med'); if (!box) return;
     var kid = curKid();
     if (!kid) {
-      box.innerHTML = '<div class="kid-empty"><b>아이를 먼저 추가해 주세요</b>해열제 먹인 시간과 체온을 기록하면, 다음에 먹일 수 있는 시각을 알려 드려요. 기록은 이 휴대폰에만 저장돼요.' +
-        '<button class="btn" data-kid-add="med">+ 아이 추가</button></div>';
+      box.innerHTML = '<div class="kid-empty"><b>아이를 먼저 추가해 주세요</b>해열제 먹인 시간과 체온을 기록하면, 다음에 먹일 수 있는 시각을 알려 드려요.' +
+        '<button class="btn" data-kid-add="med">+ 아이 추가</button></div>' + privNote('kid');
       return;
     }
     var l = logs(kid.id);
@@ -136,7 +146,7 @@
         var label = x.type === 'temp' ? '🌡 ' + x.v.toFixed(1) + '℃' : '💊 ' + DRUGS[x.type].name;
         return '<li class="' + (x.type === 'temp' && x.v >= 38 ? 'hot' : '') + '"><span class="tl-t">' + dayLabel(x.t) + ' ' + hm(x.t) + '</span><span class="tl-v">' + label + '</span><button class="tl-x" data-del="' + x.t + '" aria-label="지우기">✕</button></li>';
       }).join('') + '</ul>' : '<div class="kid-empty small">아직 기록이 없어요</div>') +
-      '<div class="actions pad"><button class="btn ghost" id="med-share">📤 진료 때 보여줄 기록 공유</button><button class="btn ghost" id="med-clear">기록 모두 지우기</button></div>';
+      '<div class="actions pad"><button class="btn ghost" id="med-share">📤 진료 때 보여줄 기록 공유</button><button class="btn ghost" id="med-clear">기록 모두 지우기</button></div>' + privNote('kid');
 
     $$('#kid-med [data-med]').forEach(function (b) {
       b.addEventListener('click', function () {
@@ -163,6 +173,7 @@
       if (confirm(kid.name + '의 해열제·체온 기록을 모두 지울까요?')) { saveLogs(kid.id, []); renderMed(); }
     });
     $('#med-share').addEventListener('click', function () {
+      if (!confirmShare('해열제·체온 기록')) return;
       var lines = recent.slice().reverse().map(function (x) {
         return dayLabel(x.t) + ' ' + hm(x.t) + '  ' + (x.type === 'temp' ? '체온 ' + x.v.toFixed(1) + '℃' : DRUGS[x.type].name + ' 복용');
       });
@@ -188,8 +199,8 @@
     var box = $('#kid-card'); if (!box) return;
     var kid = curKid();
     if (!kid) {
-      box.innerHTML = '<div class="kid-empty"><b>우리 아이 응급 카드</b>알레르기·먹는 약·지병을 적어 두면 응급실이나 119에서 화면 하나로 보여 줄 수 있어요. 조부모님·돌보미에게 카톡으로 보낼 수도 있어요. 이 휴대폰에만 저장돼요.' +
-        '<button class="btn" data-kid-add="card">+ 아이 추가</button></div>';
+      box.innerHTML = '<div class="kid-empty"><b>우리 아이 응급 카드</b>알레르기·먹는 약·지병을 적어 두면 응급실이나 119에서 화면 하나로 보여 줄 수 있어요. 조부모님·돌보미에게 카톡으로 보낼 수도 있어요.' +
+        '<button class="btn" data-kid-add="card">+ 아이 추가</button></div>' + privNote('kid');
       return;
     }
     if (editing || !kid.birth) {
@@ -200,7 +211,7 @@
           : '<input data-f="' + f[0] + '" type="' + f[2] + '"' + (f[2] === 'number' ? ' step="0.1" inputmode="decimal"' : '') + ' value="' + v + '" placeholder="' + f[3] + '">') + '</label>';
       }).join('') +
         '<div class="actions"><button class="btn" id="card-save">저장</button><button class="btn ghost" id="card-del">이 아이 지우기</button></div>' +
-        '<div class="note">이 정보는 이 휴대폰(브라우저)에만 저장되고 어디에도 보내지 않아요. 휴대폰을 바꾸거나 브라우저 기록을 지우면 사라질 수 있어요.</div></div>';
+        '<div class="note">꼭 필요한 것만 적어 주세요. 비워 둔 칸은 카드에 나오지 않아요.</div></div>' + privNote('kid');
       $('#card-save').addEventListener('click', function () {
         var k = kids(), me = k.list.filter(function (x) { return x.id === kid.id; })[0];
         $$('#kid-card [data-f]').forEach(function (el) { me[el.dataset.f] = el.value.trim(); });
@@ -225,9 +236,10 @@
         row('먹는 약', kid.meds) + row('병력', kid.conditions) + row('다니는 병원', kid.hospital) + row('보호자', kid.guardian) + row('메모', kid.memo) +
       '</div>' +
       '<div class="actions pad"><button class="btn" id="card-share">📤 카톡으로 보내기</button><button class="btn ghost" id="card-edit">✏️ 고치기</button></div>' +
-      '<div class="note pad">응급실·119에서 이 화면을 그대로 보여 주세요.</div>';
+      '<div class="note pad">응급실·119에서 이 화면을 그대로 보여 주세요.</div>' + privNote('kid');
     $('#card-edit').addEventListener('click', function () { editing = true; renderCard(); });
     $('#card-share').addEventListener('click', function () {
+      if (!confirmShare('응급 카드')) return;
       var t = '[' + kid.name + ' 응급 카드]\n' +
         '생년월일: ' + kid.birth + ' (' + ageText(kid.birth) + ')\n' +
         (kid.weight ? '몸무게: ' + kid.weight + 'kg\n' : '') + (kid.blood ? '혈액형: ' + kid.blood + '\n' : '') +
@@ -293,7 +305,7 @@
   }
   function askOpenNear() {
     var box = $('#open-near');
-    box.innerHTML = '<button class="btn on-ask" id="on-ask">📍 지금 열린 가까운 소아과 바로 보기</button>';
+    box.innerHTML = '<button class="btn on-ask" id="on-ask">📍 지금 열린 가까운 소아과 바로 보기</button>' + privNote('loc');
     $('#on-ask').addEventListener('click', function () {
       K.locate(true).then(renderOpenNear).catch(function (e) { toast(e.message); });
     });

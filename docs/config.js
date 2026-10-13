@@ -6,6 +6,8 @@ window.APP_CONFIG = {
   // 예) 구글 설문지 미리 채우기 링크: 'https://docs.google.com/forms/d/e/....../viewform?usp=pp_url&entry.123456={name}'
   //     메일: 'mailto:내메일@example.com?subject=정보수정&body={name}'
   REPORT_URL: '',
+  // 개인정보 처리방침에 나오는 문의처 (메일 주소 등). 비워 두면 '준비 중'으로 나와요.
+  PRIVACY_CONTACT: '',
   // 응급실 실시간 병상 보기 버튼이 여는 주소 (국립중앙의료원 응급실 병상 현황)
   ER_BEDS_URL: 'https://mediboard.nemc.or.kr/emergency_room_in_hand',
 };

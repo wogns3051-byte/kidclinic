@@ -28,7 +28,7 @@
 <meta name="apple-mobile-web-app-title" content="아이아플때">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-<link rel="stylesheet" href="style.css?v=21">
+<link rel="stylesheet" href="style.css?v=22">
 </head>
 <body>
 <header class="top">
@@ -85,6 +85,7 @@
         </select>
         <button class="btn ghost" id="relocate">내 위치 다시 찾기</button>
       </div>
+      <div class="priv">🔒 위치는 가까운 곳을 찾는 데만 휴대폰 안에서 쓰고 저장하지 않아요. 지도 그림은 OpenStreetMap에서 받아 와요. <a href="privacy.html">자세히</a></div>
       <div class="chips" data-for="near">
         <button class="chip" data-f="openNow">지금 진료중</button>
         <button class="chip" data-f="general">일반 의원 포함</button>
@@ -134,6 +135,7 @@
           <option value="3">반경 3km</option><option value="5">반경 5km</option><option value="10">반경 10km</option>
         </select>
       </div>
+      <div class="priv">🔒 위치는 가까운 약국을 찾는 데만 휴대폰 안에서 쓰고 저장하지 않아요. <a href="privacy.html">자세히</a></div>
       <div class="chips" data-for="pharm">
         <button class="chip" data-f="openNow">지금 영업중</button>
         <button class="chip" data-f="late">밤 10시 이후</button>
@@ -186,8 +188,8 @@
 <div class="toast" id="toast" hidden></div>
 
 <script src="vendor/leaflet/leaflet.js"></script>
-<script src="config.js?v=21"></script>
-<script src="app.js?v=21"></script>
-<script src="kid.js?v=21"></script>
+<script src="config.js?v=22"></script>
+<script src="app.js?v=22"></script>
+<script src="kid.js?v=22"></script>
 </body>
 </html>

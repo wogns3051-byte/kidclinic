@@ -254,7 +254,9 @@
   }
   // 내 위치로: 가장 가까운 병원의 시·도/시·군·구를 골라 준다
   if ($('#locate-region')) $('#locate-region').addEventListener('click', function () {
-    var btn = this; btn.disabled = true; btn.textContent = '찾는 중…';
+    var btn = this;
+    if (!load('locNoticeSeen', false)) { toast('위치는 휴대폰 안에서만 쓰고 저장하지 않아요'); save('locNoticeSeen', true); }
+    btn.disabled = true; btn.textContent = '찾는 중…';
     Promise.all([locate(true), getDB()]).then(function (r) {
       var pos = r[0], db = r[1], best = null, bd = 1e9;
       db.rows.forEach(function (x) {
@@ -637,7 +639,8 @@
     $('#foot-info').innerHTML =
       '<b>위치 정보</b> 내 위치는 가까운 병원·약국을 찾는 데만 휴대폰 안에서 쓰고, 어디에도 보내거나 저장하지 않아요.<br>' +
       '<b>자료</b> 건강보험심사평가원, 국립중앙의료원, 한국천문연구원 공공데이터' + (d ? ' (' + d + ' 갱신)' : '') + '<br>' +
-      '<b>주의</b> 진료시간은 바뀔 수 있으니 방문 전 꼭 전화로 확인하세요. 위급하면 119.';
+      '<b>주의</b> 진료시간은 바뀔 수 있으니 방문 전 꼭 전화로 확인하세요. 위급하면 119.<br>' +
+      '<a href="privacy.html">개인정보 처리방침</a>';
   }).catch(function () {});
   api('/health').then(function (h) {
     if (h.listUpdatedAt) $('#updated').textContent = '전국 ' + h.hospitals.toLocaleString() + '곳 · ' + h.listUpdatedAt.slice(5, 10).replace('-', '/') + ' 갱신';
