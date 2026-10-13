@@ -641,21 +641,12 @@
     var m = /([가-힣0-9]+(?:로|길))\s*\d/.exec(addr || '') || /([가-힣0-9]+(?:동|읍|면|리))(?:\s|$)/.exec(addr || '');
     return m ? m[1] : '';
   }
-  function mercator(lat, lng) {
-    var x = lng * 20037508.34 / 180, y = Math.log(Math.tan((90 + lat) * Math.PI / 360)) / (Math.PI / 180) * 20037508.34 / 180;
-    return x.toFixed(1) + ',' + y.toFixed(1);
-  }
   function doctorLinks(h) {
-    var m = memoOf(h.id) || {}, q = h.name + ' ' + (h.sggu || '') + ' ' + roadOf(h.addr);
-    var home = h.url ? (/^https?:/.test(h.url) ? h.url : 'http://' + h.url) : '';
-    var nmap = 'https://map.naver.com/p/search/' + encodeURIComponent(h.name) + (h.lat != null ? '?c=' + mercator(h.lat, h.lng) + ',17,0,0,0,dh' : '');
-    return '<div class="dl-h">의료진 소개 보러 가기</div><div class="dl">' +
+    var m = memoOf(h.id) || {}, q = (h.name + ' ' + (h.sggu || '') + ' ' + roadOf(h.addr)).trim();
+    return '<div class="dl">' +
+      '<a class="btn st-link" href="https://m.search.naver.com/search.naver?query=' + encodeURIComponent(q) + '" target="_blank" rel="noopener">🔎 의료진 소개 찾아보기 (네이버) ↗</a>' +
       (m.u ? '<a class="dl-a mine" href="' + esc(m.u) + '" target="_blank" rel="noopener"><b>📌 내가 저장한 의료진 페이지</b><small>' + esc(m.u.replace(/^https?:\/\//, '').slice(0, 40)) + '</small></a>' : '') +
-      (home ? '<a class="dl-a" href="' + esc(home) + '" target="_blank" rel="noopener"><b>🏥 병원 누리집</b><small>심평원에 병원이 등록한 주소예요</small></a>' : '') +
-      '<a class="dl-a" href="' + nmap + '" target="_blank" rel="noopener"><b>🟢 네이버 지도에서 이 병원</b><small>병원 위치를 가운데 두고 찾아요 → 병원 이름 누르고 "의료진" 탭</small></a>' +
-      '<a class="dl-a" href="https://m.search.naver.com/search.naver?query=' + encodeURIComponent(q.trim()) + '" target="_blank" rel="noopener"><b>🔎 네이버 검색</b><small>' + esc(q.trim()) + '</small></a>' +
-      '</div><button class="btn ghost dl-save" id="dl-save">' + (m.u ? '📎 저장한 페이지 바꾸기·지우기' : '📎 맞는 페이지를 찾았으면 주소 저장하기') + '</button>' +
-      '<div class="st-note">네이버 지도·검색에서 맞는 병원 페이지를 찾았다면 공유 → 링크 복사 후 위 버튼에 붙여 넣으세요. 다음부터 그 페이지로 바로 가요 (이 휴대폰에만 저장).</div>';
+      '</div><button class="dl-save" id="dl-save">' + (m.u ? '📎 저장한 페이지 바꾸기·지우기' : '📎 맞는 페이지를 찾았으면 주소 저장해 두기') + '</button>';
   }
   function bindDoctorLinks(h) {
     var b = $('#dl-save'); if (!b) return;
