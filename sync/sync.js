@@ -17,6 +17,8 @@ const CFG = {
   detailUrl: (process.env.HIRA_DETAIL_URL || '').trim() || 'https://apis.data.go.kr/B551182/MadmDtlInfoService2.8/getDtlInfo2.8',
   transUrl: (process.env.HIRA_TRANS_URL || '').trim() || 'https://apis.data.go.kr/B551182/MadmDtlInfoService2.8/getTrnsprtInfo2.8',
   sdrUrl: (process.env.HIRA_SDR_URL || '').trim() || 'https://apis.data.go.kr/B551182/MadmDtlInfoService2.8/getSpcSbjtSdrInfo2.8',
+  subjUrl: (process.env.HIRA_SUBJ_URL || '').trim() || 'https://apis.data.go.kr/B551182/MadmDtlInfoService2.8/getDgsbjtInfo2.8',
+  subjPerRun: Number(process.env.SUBJ_DAILY_LIMIT || 4000),     // 진료과목: 소아과·병원급만, 90일마다
   transPerRun: Number(process.env.TRANS_DAILY_LIMIT || 4000),   // 소아과·병원급만, 90일마다
   sdrPerRun: Number(process.env.SDR_DAILY_LIMIT || 6000),       // 전체 (소아과·병원급 먼저), 90일마다
   extraMaxAgeDays: 90,
@@ -185,6 +187,27 @@ function transLine(it) {
   const txt = [kind, line, stop ? stop + ' 하차' : '', dir, dist ? '약 ' + dist + 'm' : ''].filter(Boolean).join(' ');
   return txt || Object.values(it).filter((v) => typeof v === 'string' && v.length < 40).join(' ').slice(0, 80);
 }
+// 전문과목별 전문의 수 → [["소아청소년과", 2], ["가정의학과", 1]]
+function specList(items) {
+  const m = {};
+  for (const it of items) {
+    const name = String(it.dgsbjtCdNm || Object.values(it).find((v) => typeof v === 'string' && /과$/.test(v.trim())) || '').trim();
+    if (!name) continue;
+    const cntKey = Object.keys(it).find((k) => /cnt$/i.test(k) && /^\d+$/.test(String(it[k]).trim()));
+    const c = cntKey ? Number(it[cntKey]) : 0;
+    if (c > 0) m[name] = (m[name] || 0) + c;
+  }
+  return Object.entries(m).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ko')).slice(0, 12);
+}
+// 진료과목 이름 목록
+function subjList(items) {
+  const out = [];
+  for (const it of items) {
+    const name = String(it.dgsbjtCdNm || Object.values(it).find((v) => typeof v === 'string' && /과$/.test(v.trim())) || '').trim();
+    if (name && !out.includes(name)) out.push(name);
+  }
+  return out.slice(0, 20);
+}
 function pedsSpecialists(items) {
   let n = 0;
   for (const it of items) {
@@ -222,6 +245,8 @@ async function main() {
             lng: it.XPos ? Number(Number(it.XPos).toFixed(6)) : null,
             lat: it.YPos ? Number(Number(it.YPos).toFixed(6)) : null,
             doctors: it.drTotCnt ? Number(it.drTotCnt) : null,
+            // 의사 구성: 전문의·일반의·레지던트·인턴 (의과)
+            staff: [it.mdeptSdrCnt, it.mdeptGdrCnt, it.mdeptResdntCnt, it.mdeptIntnCnt].map((v) => Number(v) || 0),
           });
         }
         got += r.items.length;
@@ -279,8 +304,11 @@ async function main() {
     Object.values(state.items).filter((h) => isPeds(h) && stale(h.trans)).slice(0, CFG.transPerRun),
     (h, items) => { h.trans = { lines: items.map(transLine).filter(Boolean).slice(0, 3), at: new Date().toISOString() }; });
   await runQueue('전문의 수', CFG.sdrUrl,
-    Object.values(state.items).filter((h) => stale(h.sdr)).sort((a, b) => isPeds(b) - isPeds(a)).slice(0, CFG.sdrPerRun),
-    (h, items) => { h.sdr = { peds: pedsSpecialists(items), at: new Date().toISOString() }; });
+    Object.values(state.items).filter((h) => stale(h.sdr) || !h.sdr.v).sort((a, b) => isPeds(b) - isPeds(a)).slice(0, CFG.sdrPerRun), // v2: 과목별 전문의 목록까지 저장
+    (h, items) => { h.sdr = { peds: pedsSpecialists(items), list: specList(items), v: 2, at: new Date().toISOString() }; });
+  await runQueue('진료과목', CFG.subjUrl,
+    Object.values(state.items).filter((h) => (isPeds(h) || (h.sdr && h.sdr.peds > 0)) && stale(h.subj)).slice(0, CFG.subjPerRun),
+    (h, items) => { h.subj = { list: subjList(items), at: new Date().toISOString() }; });
   writeJson(P.state, state, true);
   const sdrDone = Object.values(state.items).filter((h) => h.sdr).length;
   console.log(`소아청소년과 전문의 확인: 전체 ${Object.keys(state.items).length}곳 중 ${sdrDone}곳 조회, ${Object.values(state.items).filter((h) => h.sdr && h.sdr.peds > 0).length}곳 전문의 있음`);
@@ -323,12 +351,15 @@ function buildOutputs(state) {
     const o = { i: h.id, n: h.name, t: h.type, s: h.sidoCd, g: h.sgguCd, a: h.addr, p: h.tel };
     if (h.lat != null) { o.y = h.lat; o.x = h.lng; }
     if (h.doctors) o.dr = h.doctors;
+    if (h.staff && h.staff.some(Boolean)) o.dz = h.staff;
     if (h.url) o.u = h.url;
     if (h.moon) o.m = h.moon; else if (isMoon(h)) o.m = 1; // 1=달빛어린이병원, 2=소아전문센터
     // 분류: 1=소아 전문(이름 또는 소아청소년과 전문의 있음), 2=병원급(소아청소년과 있음), 3=일반 의원(진료과목에 소아청소년과만 등록)
     if (/요양병원|정신병원|치과|한방|한의원/.test(h.type)) continue;
     const sd = h.sdr ? h.sdr.peds : 0;
     if (sd > 0) o.sd = sd;
+    if (h.sdr && h.sdr.list && h.sdr.list.length) o.sp = h.sdr.list;
+    if (h.subj && h.subj.list && h.subj.list.length) o.sj = h.subj.list;
     if (PEDS_NAME.test(h.name)) o.k = 1;
     else if (/상급종합|종합병원|^병원$/.test(h.type)) o.k = 2;
     else if (sd > 0) o.k = 1;
@@ -374,7 +405,7 @@ function buildOutputs(state) {
   console.log(`앱용 파일 저장: ${rows.length}곳`);
 }
 
-module.exports = { main, buildOutputs, parseItems, parseDetail, plcText, CFG, P };
+module.exports = { main, buildOutputs, parseItems, parseDetail, plcText, specList, subjList, CFG, P };
 
 if (require.main === module) {
   main().catch((e) => { console.error('실패: ' + e.message); process.exit(1); });

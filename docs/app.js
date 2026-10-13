@@ -132,7 +132,7 @@
     o.sd = r.sd || 0;
     if (lat != null && r.y != null) o.distance = Math.round(distKm(lat, lng, r.y, r.x) * 100) / 100;
     if (full) {
-      o.url = r.u || ''; o.park = r.pk || ''; o.trans = r.tr || []; o.plc = r.pl || '';
+      o.url = r.u || ''; o.park = r.pk || ''; o.trans = r.tr || []; o.plc = r.pl || ''; o.staff = r.dz || null; o.specs = r.sp || []; o.subjects = r.sj || [];
       var keys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'], hours = null;
       if (r.h) { hours = {}; keys.forEach(function (k, i) { hours[k] = span(r.h[i]); }); }
       o.detail = r.h ? { hours: hours, lunch: r.l || '', lunchSat: r.ls || '', holiNote: r.hn || '', sunNote: r.sn || '', src: r.hs === 'n' ? '국립중앙의료원' : '',
@@ -481,6 +481,28 @@
       '<div class="hrs-tip">' + (rcvW || rcvS ? '접수 마감은 병원이 신고한 접수시간이에요. ' : '소아과는 보통 진료 끝나기 30분 전쯤 접수를 마감해요. ') + '점심시간 직전·진료 마감 직전은 접수가 막힐 수 있어요.</div>';
     return html;
   }
+  // 👩‍⚕️ 의료진·진료과목 (심평원 자료: 의사 구성, 과목별 전문의 수, 진료과목)
+  function staffBlock(h) {
+    var z = h.staff || [0, 0, 0, 0], total = h.doctors || 0;
+    if (!total && !h.specs.length && !h.subjects.length) return '';
+    var parts = [];
+    if (z[0]) parts.push('전문의 ' + z[0] + '명'); if (z[1]) parts.push('일반의 ' + z[1] + '명');
+    if (z[2]) parts.push('레지던트 ' + z[2] + '명'); if (z[3]) parts.push('인턴 ' + z[3] + '명');
+    var peds = 0; h.specs.forEach(function (x) { if (/소아/.test(x[0])) peds += x[1]; });
+    var people = '';
+    var n = Math.min(total || 0, 12);
+    var spec = Math.max(z[0] || 0, peds);
+    for (var i = 0; i < n; i++) people += '<i class="' + (i < peds ? 'p' : i < spec ? 's' : '') + '">' + (i < spec ? '🧑‍⚕️' : '👤') + '</i>';
+    return '<div class="sub-h">의료진 · 전문분야</div><div class="staff">' +
+      (total ? '<div class="st-top"><div class="st-n"><b>' + total + '</b>명<small>의사</small></div><div><div class="st-people">' + people + (total > 12 ? '<span>+' + (total - 12) + '</span>' : '') + '</div>' +
+        (parts.length ? '<div class="st-parts">' + parts.join(' · ') + '</div>' : '') + '</div></div>' : '') +
+      (h.specs.length ? '<div class="st-row"><span>전문의</span><div class="st-chips">' + h.specs.map(function (x) {
+        return '<em class="' + (/소아/.test(x[0]) ? 'peds' : '') + '">' + esc(x[0]) + ' ' + x[1] + '명</em>'; }).join('') + '</div></div>' : '') +
+      (h.subjects.length ? '<div class="st-row"><span>진료과목</span><div class="st-chips sj">' + h.subjects.map(function (x) {
+        return '<em class="' + (/소아/.test(x) ? 'peds' : '') + '">' + esc(x) + '</em>'; }).join('') + '</div></div>' : '') +
+      '<div class="st-note">' + (peds ? '분홍 동그라미는 소아청소년과 전문의, ' : '') + '🧑‍⚕️ 전문의 · 👤 일반의·수련의예요. 의사 이름·사진·세부 전문분야(예: 알레르기·성장)는 공공데이터에 없어서, 병원이 직접 올린 소개를 보세요.</div>' +
+      '<a class="btn ghost st-link" href="https://m.search.naver.com/search.naver?query=' + encodeURIComponent(h.name + ' ' + (h.sggu || '') + ' 의료진') + '" target="_blank" rel="noopener">🔎 의료진 소개 찾아보기 (네이버) ↗</a></div>';
+  }
   function holWeek(h) {
     var box = document.getElementById('hol-week'); if (!box || !h.detail) return;
     getDB().then(function (db) {
@@ -532,7 +554,7 @@
           (h.plc ? '<div>📍 ' + esc(h.plc) + '</div>' : '') +
           (h.park ? '<div>🅿️ ' + esc(h.park) + '</div>' : '') +
           (h.trans || []).map(function (t) { return '<div>' + (/지하철|전철/.test(t) ? '🚇 ' : '🚌 ') + esc(t) + '</div>'; }).join('') + '</div>' : '') +
-        (h.doctors ? '<div class="note">의사 수 ' + h.doctors + '명</div>' : '') +
+        staffBlock(h) +
         (REPORT_URL ? '<button class="btn ghost report" id="report-btn">정보가 달라요</button>' : '') +
         '<div class="note">진료시간·휴진은 병원 사정으로 바뀔 수 있어요. 방문 전 꼭 전화로 확인하세요.<br>자료: 건강보험심사평가원 병원정보서비스' + (d.src ? ' · 진료시간: ' + d.src : '') + (h.moonlight ? ' · 달빛어린이병원: 국립중앙의료원' : '') + '</div>';
       if ($('#after-pharm')) afterPharm(h, $('#after-pharm'));

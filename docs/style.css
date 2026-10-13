@@ -987,3 +987,24 @@ html.daytime .brand-wrap .sub { color: rgba(255,255,255,.9); }
 .hb-scale span:first-child { transform: none; }
 .hr-d.sm { font-size: 11.5px; padding-top: 2px; }
 .hb-scale span { white-space: nowrap; } .hb-scale span:last-child { transform: translateX(-70%); }
+
+/* ───── v9: 의료진·전문분야 ───── */
+.staff { display: grid; gap: 10px; padding: 12px 14px; border-radius: 18px; background: var(--card); border: 1px solid var(--line); }
+.st-top { display: grid; grid-template-columns: 64px 1fr; gap: 10px; align-items: center; }
+.st-n { text-align: center; line-height: 1.1; } .st-n b { font-family: var(--display); font-weight: 400; font-size: 30px; color: var(--brand); }
+.st-n small { display: block; font-size: 11px; color: var(--muted); }
+.st-people { display: flex; flex-wrap: wrap; gap: 2px; font-size: 18px; } .st-people i { font-style: normal; opacity: .55; } .st-people i.p, .st-people i.s { opacity: 1; }
+.st-people span { font-size: 12px; color: var(--muted); align-self: center; margin-left: 4px; }
+.st-parts { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+.st-row { display: grid; grid-template-columns: 56px 1fr; gap: 8px; align-items: start; font-size: 12.5px; }
+.st-row > span { color: var(--muted); padding-top: 4px; }
+.st-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.st-chips em { font-style: normal; font-size: 12.5px; padding: 3px 9px; border-radius: 999px; background: var(--bg); }
+.st-chips em.peds { background: #FFE3EC; color: #C2335A; font-weight: 700; }
+.st-chips.sj em { font-size: 12px; }
+.st-note { font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+@media (prefers-color-scheme: dark) { .st-chips em.peds { background: #3A1E2E; color: #FF9DB8; } }
+.st-people i { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; }
+.st-people i.p { background: #FFE3EC; box-shadow: 0 0 0 2px #FFB3C7 inset; }
+.st-link { height: 40px; font-size: 13px; display: grid; place-items: center; text-decoration: none; }
+@media (prefers-color-scheme: dark) { .st-people i.p { background: #3A1E2E; box-shadow: 0 0 0 2px #7A3550 inset; } }
