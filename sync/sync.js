@@ -131,6 +131,11 @@ function parkText(d) {
   if (etc && etc.length <= 60) parts.push(etc);
   return parts.join(' · ');
 }
+// 위치 안내: plcNm(가까운 곳 이름) · plcDir(방향) · plcDist(거리) — 예: "김천역 정문 맞은편 100m"
+function plcText(d) {
+  const t = [d.plcNm, d.plcDir, d.plcDist].map((v) => String(v || '').trim()).filter(Boolean).join(' ').replace(/\s+/g, ' ');
+  return t.length > 80 ? t.slice(0, 80) : t;
+}
 function parseDetail(d) {
   const hours = DAYS.map((K) => {
     const s = hhmm(d['trmt' + K + 'Start']), e = hhmm(d['trmt' + K + 'End']);
@@ -147,7 +152,8 @@ function parseDetail(d) {
     erTel: d.emyNgtTelNo1 || d.emyDayTelNo1 || '',
     // 주차: parkQty 대수, parkXpnsYn 주차비 부담 여부(Y=유료), parkEtc 기타 안내
     park: parkText(d),
-    v: 3,
+    plc: plcText(d),
+    v: 4,
     at: new Date().toISOString(),
   };
 }
@@ -237,7 +243,7 @@ async function main() {
   // 2) 진료시간 (오래된 것부터, 상한만큼)
   const maxAge = CFG.detailMaxAgeDays * 86400000;
   const targets = Object.values(state.items)
-    .filter((h) => !h.detail || h.detail.v !== 3 || Date.now() - Date.parse(h.detail.at) > maxAge) // v3: 주차 항목 추가로 한 번 다시 받음
+    .filter((h) => !h.detail || h.detail.v !== 4 || Date.now() - Date.parse(h.detail.at) > maxAge) // v4: 위치 안내 항목 추가로 한 번 다시 받음 (소아과·병원급 먼저)
     // 소아과 전문·병원급 먼저, 그다음 오래된 순
     .sort((a, b) => (isPeds(b) - isPeds(a)) || ((a.detail ? Date.parse(a.detail.at) : 0) - (b.detail ? Date.parse(b.detail.at) : 0)))
     .slice(0, CFG.detailPerRun);
@@ -248,7 +254,7 @@ async function main() {
       try {
         const r = await callApi(CFG.detailUrl, { ykiho: h.id, pageNo: 1, numOfRows: 1 }, 2);
         if (r.items[0] && !loggedKeys) { loggedKeys = true; console.log('  (응답 항목 예시: ' + Object.keys(r.items[0]).join(', ') + ')'); }
-        h.detail = r.items[0] ? parseDetail(r.items[0]) : { hours: null, v: 3, at: new Date().toISOString() };
+        h.detail = r.items[0] ? parseDetail(r.items[0]) : { hours: null, v: 4, at: new Date().toISOString() };
         n++;
       } catch (e) {
         if (e.fatal) { if (!stop) console.error('상세 조회 중단: ' + e.message); stop = true; break; }
@@ -290,6 +296,13 @@ async function main() {
 
   // 5) 앱용 파일
   buildOutputs(state);
+
+  // 6) 우리 지역 혜택 · 유행 감염병 (활용신청 전이면 건너뜀)
+  const more = require('./more.js');
+  const regions = (readJson(path.join(P.outDir, 'meta.json'), {}) || {}).regions || {};
+  await more.localBenefits(CFG.key, state, P.outDir, regions);
+  await more.epidemic(CFG.key, P.outDir);
+  writeJson(P.state, state, true);
 }
 
 function buildOutputs(state) {
@@ -319,6 +332,7 @@ function buildOutputs(state) {
     else if (sd > 0) o.k = 1;
     else o.k = 3;
     if (o.k !== 3 && h.detail && h.detail.park) o.pk = h.detail.park;
+    if (h.detail && h.detail.plc) o.pl = h.detail.plc;
     if (o.k !== 3 && h.trans && h.trans.lines && h.trans.lines.length) o.tr = h.trans.lines;
     const d = h.detail, nm = h.nmc;
     if (d && d.erNight) { o.er = 1; if (d.erTel) o.et = d.erTel; }
@@ -356,7 +370,7 @@ function buildOutputs(state) {
   console.log(`앱용 파일 저장: ${rows.length}곳`);
 }
 
-module.exports = { main, buildOutputs, parseItems, parseDetail, CFG, P };
+module.exports = { main, buildOutputs, parseItems, parseDetail, plcText, CFG, P };
 
 if (require.main === module) {
   main().catch((e) => { console.error('실패: ' + e.message); process.exit(1); });

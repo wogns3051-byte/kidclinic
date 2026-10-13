@@ -150,7 +150,8 @@
       if (day >= D.maxDay) html += '<div class="med-next warn">24시간 최대 횟수에 닿았어요. 더 먹이기 전에 의사·약사와 상의하세요</div>';
       else if (next > now) {
         var mins = Math.ceil((next - now) / 60000);
-        html += '<div class="med-next">같은 약은 <b>' + hm(next) + '</b> 이후 (' + (mins >= 60 ? Math.floor(mins / 60) + '시간 ' : '') + (mins % 60) + '분 뒤)</div>';
+        html += '<div class="med-next">같은 약은 <b>' + hm(next) + '</b> 이후 (' + (mins >= 60 ? Math.floor(mins / 60) + '시간 ' : '') + (mins % 60) + '분 뒤)</div>' +
+          '<div class="med-alarm"><button class="chip" data-med-alarm="' + key + '" data-at="' + next + '">⏰ ' + hm(next) + ' 캘린더 알림</button><a href="#" data-med-gcal="' + key + '" data-at="' + next + '">구글 캘린더</a></div>';
       } else html += '<div class="med-next ok">같은 약을 다시 먹일 수 있는 간격(' + D.gapH + '시간)이 지났어요</div>';
     }
     return html + '</div>';
@@ -217,6 +218,17 @@
         if (last && t - last.t < D.gapH * 3600000 && !confirm('같은 계열을 ' + hm(last.t) + '에 먹였어요. 설명서 기준 간격(' + D.gapH + '시간)보다 짧은데 그래도 기록할까요?')) return;
         if (day >= D.maxDay && !confirm('24시간 안에 이미 ' + day + '회 먹였어요. 그래도 기록할까요?')) return;
         l.push({ t: t, type: key }); saveLogs(kid.id, l); toast(hm(t) + ' 기록했어요'); renderMed();
+      });
+    });
+    $$('#kid-med [data-med-alarm]').forEach(function (b) {
+      b.addEventListener('click', function () { var who = askCalName(kid); if (who) medIcs(who, b.dataset.medAlarm, +b.dataset.at); });
+    });
+    $$('#kid-med [data-med-gcal]').forEach(function (a) {
+      a.addEventListener('click', function (e) {
+        e.preventDefault(); var who = askCalName(kid); if (!who) return;
+        var at = +a.dataset.at, f = function (t) { return new Date(t).toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z'); };
+        window.open('https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent('[' + who + '] 해열제 먹일 수 있는 시각 (' + DRUGS[a.dataset.medGcal].name + ')') +
+          '&dates=' + f(at) + '/' + f(at + 600000) + '&details=' + encodeURIComponent('열이 없거나 아이가 편하게 자면 꼭 먹이지 않아도 돼요.\n- 아이아플때'), '_blank', 'noopener');
       });
     });
     $('#temp-btn').addEventListener('click', function () {
@@ -293,9 +305,9 @@
         saveKids(k); editing = false; toast('저장했어요'); showPane('card');
       });
       $('#card-del').addEventListener('click', function () {
-        if (!confirm(kid.name + '의 카드와 해열제·처방약·일정·성장 기록을 모두 지울까요?')) return;
+        if (!confirm(kid.name + '의 카드와 해열제·처방약·진료·일정·성장 기록을 모두 지울까요?')) return;
         var k = kids(); k.list = k.list.filter(function (x) { return x.id !== kid.id; }); k.cur = k.list[0] ? k.list[0].id : '';
-        saveKids(k); try { ['kidlog:', 'kiddone:', 'kidgrow:', 'kidrx:'].forEach(function (p) { localStorage.removeItem(p + kid.id); }); } catch (e) {} editing = false; showPane('card');
+        saveKids(k); try { ['kidlog:', 'kiddone:', 'kidgrow:', 'kidrx:', 'kidvisit:'].forEach(function (p) { localStorage.removeItem(p + kid.id); }); } catch (e) {} editing = false; showPane('card');
       });
       return;
     }
@@ -680,7 +692,22 @@
     calName[kid.id] = v;
     return v;
   }
-  function icsEsc(t) { return String(t).replace(/\\/g, '\\\\').replace(/;/g, '\;').replace(/,/g, '\\,').replace(/\n/g, '\\n'); }
+  function icsEsc(t) { return String(t).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n'); }
+  // 해열제: 다음에 먹일 수 있는 시각에 울리는 캘린더 일정 1개
+  function medIcs(who, key, at) {
+    var f = function (t) { return new Date(t).toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z'); };
+    var lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//aiapulttae//med//KO', 'METHOD:PUBLISH',
+      'BEGIN:VEVENT', 'UID:med-' + at + '@aiapulttae', 'DTSTAMP:' + f(Date.now()), 'DTSTART:' + f(at), 'DTEND:' + f(at + 600000),
+      'SUMMARY:' + icsEsc('[' + who + '] 💊 해열제 먹일 수 있는 시각 (' + DRUGS[key].name + ')'),
+      'DESCRIPTION:' + icsEsc('같은 계열 약을 다시 먹일 수 있는 간격이 지났어요. 열이 없거나 아이가 편하게 자면 꼭 먹이지 않아도 돼요.\n- 아이아플때'),
+      'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + icsEsc('해열제 먹일 수 있는 시각'), 'TRIGGER:PT0M', 'END:VALARM', 'END:VEVENT', 'END:VCALENDAR'];
+    var blob = new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+    var url = URL.createObjectURL(blob), a = document.createElement('a');
+    a.href = url; a.download = 'aiapulttae-med-' + hm(at).replace(':', '') + '.ics';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
+    toast(hm(at) + ' 알림 파일을 만들었어요. 열어서 캘린더에 추가하세요');
+  }
   function downloadIcs(kid, items, who) {
     var f = function (d) { return ymd(d).replace(/-/g, ''); };
     var stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
@@ -707,7 +734,7 @@
 
   // ───── 💾 백업 내보내기·불러오기 ─────
   // 휴대폰에만 저장하는 대신, 이용자가 직접 파일로 옮길 수 있게 한다. (서버를 거치지 않음)
-  var BK_KEYS = /^(kids|kidlog:.+|kiddone:.+|kidgrow:.+|kidrx:.+|lang|favs|region|bigFont|kidPane)$/;
+  var BK_KEYS = /^(kids|kidlog:.+|kiddone:.+|kidgrow:.+|kidrx:.+|kidvisit:.+|lang|favs|region|bigFont|kidPane)$/;
   function backupData() {
     var data = {};
     for (var i = 0; i < localStorage.length; i++) {

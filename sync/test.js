@@ -8,7 +8,7 @@ const assert = require('assert');
 
 const H = [
   { ykiho: 'A1', yadmNm: '김천튼튼소아청소년과의원', clCdNm: '의원', sidoCd: '370000', sidoCdNm: '경북', sgguCd: '370100', sgguCdNm: '김천시', addr: '경북 김천시 A로 1', telno: '054-000-0001', XPos: '128.1131234567', YPos: '36.139', drTotCnt: '2',
-    d: { trmtMonStart: '0900', trmtMonEnd: '2100', trmtSunStart: '1000', trmtSunEnd: '1700', noTrmtHoli: '정상진료', lunchWeek: '13:00~14:00', emyNgtYn: 'Y', emyNgtTelNo1: '054-000-9999', parkQty: '12', parkXpnsYn: 'N' } },
+    d: { trmtMonStart: '0900', trmtMonEnd: '2100', trmtSunStart: '1000', trmtSunEnd: '1700', noTrmtHoli: '정상진료', lunchWeek: '13:00~14:00', emyNgtYn: 'Y', emyNgtTelNo1: '054-000-9999', parkQty: '12', parkXpnsYn: 'N', plcNm: '김천역', plcDir: '정문 맞은편', plcDist: '100m' } },
   { ykiho: 'A2', yadmNm: '구미아동병원', clCdNm: '병원', sidoCd: '370000', sidoCdNm: '경북', sgguCd: '370200', sgguCdNm: '구미시', addr: '경북 구미시 B로 2', telno: '054-000-0002', XPos: '128.344', YPos: '36.119',
     d: { trmtMonStart: '900', trmtMonEnd: '1800', noTrmtHoli: '휴진' } },
   { ykiho: 'C1', yadmNm: '튼튼가정의원', clCdNm: '의원', sidoCd: '370000', sidoCdNm: '경북', sgguCd: '370100', sgguCdNm: '김천시', addr: '경북 김천시 D로 4', telno: '054-000-0004', XPos: '128.12', YPos: '36.13', d: null },
@@ -17,10 +17,10 @@ const H = [
 const xml = (items, total, code = '00') => `<?xml version="1.0"?><response><header><resultCode>${code}</resultCode><resultMsg>OK</resultMsg></header><body><items>${
   items.map((o) => '<item>' + Object.entries(o).map(([k, v]) => `<${k}>${v}</${k}>`).join('') + '</item>').join('')
 }</items><totalCount>${total}</totalCount></body></response>`;
-let detailCalls = 0, fullCalls = 0, pharmCalls = 0, transCalls = 0, sdrCalls = 0, failSeoul = false, brokenDetail = false;
+let gov24Calls = 0, gov24Auth = false, detailCalls = 0, fullCalls = 0, pharmCalls = 0, transCalls = 0, sdrCalls = 0, failSeoul = false, brokenDetail = false;
 const mock = http.createServer((req, res) => {
   const q = new URL(req.url, 'http://x').searchParams;
-  assert.strictEqual(q.get('serviceKey'), 'TESTKEY');
+  if (!req.url.startsWith('/portal')) assert.strictEqual(q.get('serviceKey'), 'TESTKEY');
   if (req.url.startsWith('/list')) {
     if (failSeoul && q.get('sidoCd') === '110000') { res.statusCode = 500; return res.end('err'); }
     const rows = H.filter((h) => h.sidoCd === q.get('sidoCd')).map(({ d, ...r }) => r);
@@ -67,6 +67,34 @@ const mock = http.createServer((req, res) => {
       { dutyName: '다른내과의원', wgs84Lat: '37.5002', wgs84Lon: '127.0302', dutyTime1s: '0900', dutyTime1c: '1800' },
     ], 2));
   }
+  if (req.url.startsWith('/gov24')) {
+    gov24Calls++;
+    if (gov24Auth) { res.statusCode = 401; return res.end(JSON.stringify({ code: -4, msg: '등록되지 않은 인증키 입니다.' })); }
+    const data = [
+      { 서비스ID: '1', 서비스명: '김천시 출산축하금', 서비스목적요약: '출산 가정 지원', 지원대상: '김천시 출생아 부모', 지원내용: '첫째 100만원', 신청방법: '읍면동 방문', 상세조회URL: 'https://www.gov.kr/x', 소관기관명: '경상북도 김천시', 소관기관유형: '지자체', 전화문의: '054-1', 서비스분야: '임신·출산', 조회수: '50' },
+      { 서비스ID: '2', 서비스명: '경상북도 다자녀 지원', 서비스목적요약: '다자녀 가정', 지원대상: '도내 다자녀', 지원내용: '바우처', 소관기관명: '경상북도', 소관기관유형: '지자체', 조회수: '10' },
+      { 서비스ID: '3', 서비스명: '어르신 교통비', 지원대상: '65세 이상', 소관기관명: '경상북도 김천시', 소관기관유형: '지자체', 조회수: '99' },
+      { 서비스ID: '4', 서비스명: '부모급여', 지원대상: '영아 부모', 소관기관명: '보건복지부', 소관기관유형: '중앙행정기관', 조회수: '999' },
+      { 서비스ID: '5', 서비스명: '중구 아동수당 추가', 지원대상: '아동', 소관기관명: '중구', 소관기관유형: '지자체', 조회수: '5' },
+    ];
+    return res.end(JSON.stringify({ currentCount: data.length, data, matchCount: data.length, page: 1, perPage: 1000, totalCount: data.length }));
+  }
+  if (req.url.startsWith('/eid')) {
+    const yr = +q.get('searchStartYear');
+    const item = [];
+    for (let w = 30; w <= 40; w++) {
+      item.push({ period: `${yr}년 ${String(w).padStart(2, '0')}주`, icdGroupNm: '제2급', icdNm: '수두', resultVal: String(w === 38 ? '1,200' : 500) });
+      item.push({ period: `${yr}년 ${String(w).padStart(2, '0')}주`, icdGroupNm: '제2급', icdNm: '@홍역', resultVal: '0' });
+    }
+    item.push({ period: '계', icdGroupNm: '제2급', icdNm: '수두', resultVal: '99999' });
+    return res.end(JSON.stringify({ response: { header: { resultCode: '00' }, body: { items: { item }, totalCount: String(item.length) } } }));
+  }
+  if (req.url.startsWith('/portal/influ.do')) { res.setHeader('Set-Cookie', 'JSESSIONID=abc; Path=/'); return res.end('<html></html>'); }
+  if (req.url.startsWith('/portal/influListAjax.do')) {
+    assert.ok(/JSESSIONID=abc/.test(req.headers.cookie || ''), '쿠키 전달');
+    return res.end(JSON.stringify({ result: true, value: { headerList: [{ GR2: '36', TITLE: '36주' }, { GR2: '37', TITLE: '37주' }, { GR2: '38', TITLE: '38주' }],
+      data: [{ TITLE: '0세', COLUMN1: '10', COLUMN2: '12', COLUMN3: '집계 중' }, { TITLE: '1-6세', COLUMN1: '40.1', COLUMN2: '49.8', COLUMN3: '집계 중' }, { TITLE: '7-12세', COLUMN1: '60', COLUMN2: '75.1', COLUMN3: '집계 중' }] } }));
+  }
   detailCalls++;
   if (brokenDetail) { res.statusCode = 400; return res.end(xml([], 0, '12').replace('<resultMsg>OK</resultMsg>', '<resultMsg>해당 오픈API 서비스가 없거나 폐기됨</resultMsg>')); }
   const h = H.find((x) => x.ykiho === q.get('ykiho'));
@@ -80,7 +108,7 @@ const mock = http.createServer((req, res) => {
   fs.mkdirSync(path.join(root, 'data'));
   fs.writeFileSync(path.join(root, 'data', 'moonlight.json'), JSON.stringify([{ _설명: 'x' }, { name: '구미아동병원', sido: '경북' }]));
   fs.writeFileSync(path.join(root, 'data', 'holidays.json'), '["2026-10-09"]');
-  Object.assign(process.env, { KIDCLINIC_ROOT: root, HIRA_SERVICE_KEY: 'TESTKEY', HIRA_LIST_URL: `http://127.0.0.1:${port}/list`, HIRA_DETAIL_URL: `http://127.0.0.1:${port}/detail`, DETAIL_DAILY_LIMIT: '2', NMC_BASE_URL: `http://127.0.0.1:${port}/nmc`, NMC_ER_BASE_URL: `http://127.0.0.1:${port}/er`, HOLIDAY_URL: `http://127.0.0.1:${port}/holi`, PHARM_URL: `http://127.0.0.1:${port}/pharm`, HIRA_TRANS_URL: `http://127.0.0.1:${port}/trans`, HIRA_SDR_URL: `http://127.0.0.1:${port}/sdr` });
+  Object.assign(process.env, { KIDCLINIC_ROOT: root, HIRA_SERVICE_KEY: 'TESTKEY', HIRA_LIST_URL: `http://127.0.0.1:${port}/list`, HIRA_DETAIL_URL: `http://127.0.0.1:${port}/detail`, DETAIL_DAILY_LIMIT: '2', NMC_BASE_URL: `http://127.0.0.1:${port}/nmc`, NMC_ER_BASE_URL: `http://127.0.0.1:${port}/er`, HOLIDAY_URL: `http://127.0.0.1:${port}/holi`, PHARM_URL: `http://127.0.0.1:${port}/pharm`, HIRA_TRANS_URL: `http://127.0.0.1:${port}/trans`, HIRA_SDR_URL: `http://127.0.0.1:${port}/sdr`, GOV24_URL: `http://127.0.0.1:${port}/gov24`, EID_URL: `http://127.0.0.1:${port}/eid`, KDCA_PORTAL: `http://127.0.0.1:${port}/portal/` });
   const s = require('./sync.js');
   let pass = 0; const ok = (c, m) => { assert.ok(c, m); pass++; console.log('  ✓ ' + m); };
   const out = () => JSON.parse(fs.readFileSync(path.join(root, 'docs', 'data', 'hospitals.json'), 'utf8'));
@@ -119,6 +147,21 @@ const mock = http.createServer((req, res) => {
   const c1 = out().find((r) => r.i === 'C1');
   ok(c1.k === 1 && c1.sd === 1 && !c1.tr, '이름에 소아 없어도 소아청소년과 전문의 있으면 소아과로 분류');
   ok(transCalls >= 2 && sdrCalls >= 4, '교통·전문의 조회');
+  ok(a1.pl === '김천역 정문 맞은편 100m', '위치 안내');
+  const lb = JSON.parse(fs.readFileSync(path.join(root, 'docs', 'data', 'lb', '370000.json'), 'utf8'));
+  ok(lb.sg['370100'] && lb.sg['370100'][0].n === '김천시 출산축하금' && lb.sg['370100'][0].u === 'https://www.gov.kr/x', '지역 혜택: 시·군·구별 출산·육아');
+  ok(lb.all.length === 1 && lb.all[0].n === '경상북도 다자녀 지원', '지역 혜택: 도 전체');
+  ok(!JSON.stringify(lb).includes('어르신') && !JSON.stringify(lb).includes('부모급여') && !JSON.stringify(lb).includes('중구'), '지역 혜택: 어르신·중앙부처·애매한 지역 제외');
+  ok(gov24Calls === 1, '지역 혜택은 7일에 한 번만 받음');
+  const epi = JSON.parse(fs.readFileSync(path.join(root, 'docs', 'data', 'epi.json'), 'utf8'));
+  const chick = epi.nat.items.find((x) => x.n === '수두');
+  ok(epi.nat.week.endsWith('38주') && chick.v === 1200 && chick.prev === 500 && chick.trend === 'up', '유행 감염병: 2주 전 기준·쉼표·계 행 제외·증가 표시');
+  ok(epi.nat.items.some((x) => x.n === '홍역' && x.v === 0), '유행 감염병: 이름 앞 @ 정리');
+  ok(epi.flu.week === '37주' && epi.flu.ages['1-6세'].v === 49.8 && epi.flu.ages['1-6세'].prev === 40.1, '독감 표본감시: 집계 중 주 건너뜀');
+  const scan = require('../docs/scan.js');
+  const bag = scan.parseBag('복약안내문\n조제일자: 2026-10-11\n처방의료기관: 튼튼소아청소년과의원\n타세파건조시럽   5071   3   5\n해열진통제\n세프라딘건조시럽 30 3 5\n함생제\n복용법: 1일 3회 식후 30분ㆍ5일분\n보관: 냉장 보관');
+  ok(bag.drugs.length === 2 && bag.drugs[0].dose === '5mL' && bag.drugs[1].eff === '항생제' && bag.perDay === 3 && bag.days === 5 && bag.start === '2026-10-11' && bag.cold && bag.hospital === '튼튼소아청소년과의원', '약봉투 글자 → 약 목록');
+  ok(scan.slotsFor(2, '식후') + '' === '0,2' && scan.slotsFor(3, '식후, 자기 전') + '' === '0,2,3', '하루 횟수 → 먹는 때');
   failSeoul = true; H.splice(1, 1);
   console.log = () => {}; console.error = () => {};
   await s.main();

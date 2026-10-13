@@ -56,6 +56,8 @@
     if (syms.length) rows.push(['📝 증상', syms.map(function (w) { return w + (symCount[w] > 1 ? ' ' + symCount[w] + '번' : ''); }).join(', '), syms.some(function (w) { return /경련|처짐|소변 줄/.test(w); })]);
     if (pee24 || drink24 || lastPee) rows.push(['💧 소변·물 (24시간)', '소변 ' + pee24 + '번 · 물·수유 ' + drink24 + '번' + (lastPee ? '\n마지막 소변 ' + when(lastPee.t) : ''), lastPee && now - lastPee.t > 8 * 3600000]);
     if (rx.length) rows.push(['💊 먹는 처방약', rx.map(function (x) { return x.name + (x.dose ? ' ' + x.dose : ''); }).join('\n')]);
+    var lv = visits(kid)[0];
+    if (lv && (Date.now() - new Date(lv.d + 'T00:00:00')) < 14 * 86400000) rows.push(['📒 최근 진료', lv.d.slice(5).replace('-', '/') + ' ' + (lv.hosp || '') + (lv.diag ? ' · ' + lv.diag : '')]);
     if (kid.allergy) rows.push(['⚠️ 알레르기', kid.allergy, true]);
     return { rows: rows, hasData: !!(temps.length || acet.length || ibu.length || notes.length || pee24 || drink24) };
   }
@@ -108,13 +110,15 @@
       return '<div class="rx"><div class="rx-h"><div><b>' + esc(x.name) + '</b>' + (x.dose ? ' <span>' + esc(x.dose) + '</span>' : '') +
         '<div class="rx-sub">' + x.start.slice(5).replace('-', '/') + '부터 ' + x.days + '일 · 하루 ' + x.slots.length + '번 · ' + doneN + '/' + total + ' 먹음' + (x.cold ? ' · 🧊 냉장 보관' : '') + '</div></div>' +
         '<button class="rx-del" data-rxdel="' + x.id + '" aria-label="지우기">✕</button></div>' +
+        (x.drugs && x.drugs.length ? '<ul class="rx-drugs">' + x.drugs.map(function (d) { return '<li><b>' + esc(d.n) + '</b>' + (d.dose ? ' ' + esc(d.dose) : '') + (d.eff ? ' <span>' + esc(d.eff) + '</span>' : '') + '</li>'; }).join('') + '</ul>' : '') +
         (missed ? '<div class="rx-miss">⚠️ 빠뜨린 칸이 ' + missed + '개 있어요. 먹였다면 눌러서 체크하고, 못 먹였다면 다음 번에 두 번 먹이지 말고 약사·의사에게 물어보세요.</div>' : '') +
         '<div class="rx-scroll"><table class="rx-t"><thead><tr><th></th>' + x.slots.map(function (si) { return '<th>' + SLOTS[si] + '</th>'; }).join('') + '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
         '<button class="btn ghost rx-form-btn" data-rxform="' + x.id + '">📝 이 약으로 어린이집 투약의뢰서 만들기</button></div>';
     };
     return '<div class="care-intro">병원에서 받은 약을 적어 두고 먹일 때마다 칸을 눌러 체크하세요. 항생제는 다 나은 것 같아도 처방받은 날짜까지 먹이는 게 중요해요.</div>' +
       (act.length ? act.map(card).join('') : '<div class="kid-empty small">지금 먹는 처방약이 없어요</div>') +
-      '<details class="rx-add"' + (act.length ? '' : ' open') + '><summary>+ 처방약 추가</summary><div class="g-form">' +
+      '<button class="btn soft rx-scan" data-scan>📷 약봉투 사진 찍어서 자동으로 넣기</button>' +
+      '<details class="rx-add"' + (act.length ? '' : ' open') + '><summary>+ 직접 적어서 추가</summary><div class="g-form">' +
         '<label>약 이름<input id="rx-n" maxlength="30" placeholder="예: 항생제 시럽, 감기약"></label>' +
         '<label>한 번에 먹는 양<input id="rx-d" maxlength="20" placeholder="예: 5mL, 1포 (약 봉투대로)"></label>' +
         '<div class="g-two"><label>시작한 날<input type="date" id="rx-s" value="' + ymd(t0) + '"></label><label>며칠 동안<input type="number" id="rx-days" min="1" max="30" value="5" inputmode="numeric"></label></div>' +
@@ -147,6 +151,74 @@
       if (!slots.length) { toast('먹는 때를 하나 이상 골라 주세요'); return; }
       var l = rxList(kid); l.push({ id: uid(), name: n, dose: $('#rx-d').value.trim(), start: st || ymd(today0()), days: days, slots: slots, cold: $('#rx-cold').checked, c: {} });
       rxSave(kid, l); toast('추가했어요. 먹일 때마다 칸을 눌러 주세요'); render();
+    });
+  }
+
+
+  // ───── ⑤ 진료 기록 수첩 ─────
+  function visits(kid) { return load('kidvisit:' + kid.id, []); }
+  function visSave(kid, l) { l.sort(function (a, b) { return a.d < b.d ? 1 : -1; }); save('kidvisit:' + kid.id, l.slice(0, 300)); }
+  K.addVisit = function (kid, v) { var l = visits(kid); v.id = uid(); l.push(v); visSave(kid, l); };
+  var visEdit = null, visQ = '';
+  function hospNames() {
+    var names = {};
+    try { var db = K.db; (load('favs', []) || []).forEach(function (id) { var r = db && db.byId && db.byId[id]; if (r && r.n) names[r.n] = 1; }); } catch (e) {}
+    try { var k = K.curKid(); if (k && k.hospital) names[k.hospital] = 1; visits(k).forEach(function (v) { if (v.hosp) names[v.hosp] = 1; }); } catch (e) {}
+    return Object.keys(names).slice(0, 30);
+  }
+  function renderVisit(kid) {
+    var l = visits(kid), t0 = ymd(today0());
+    var e = visEdit && visEdit !== 'new' ? l.filter(function (v) { return v.id === visEdit; })[0] || {} : {};
+    var q = visQ.trim();
+    var shown = q ? l.filter(function (v) { return [v.hosp, v.diag, v.rx, v.memo].join(' ').indexOf(q) >= 0; }) : l;
+    var form = '<div class="g-form vis-form"><div class="g-fh">' + (visEdit && visEdit !== 'new' ? '진료 기록 고치기' : '새 진료 기록') + '</div>' +
+      '<div class="g-two"><label>진료 날짜<input type="date" id="v-d" max="' + t0 + '" value="' + esc(e.d || t0) + '"></label><label>다음 진료(재진)<input type="date" id="v-next" value="' + esc(e.next || '') + '"></label></div>' +
+      '<label>병원<input id="v-h" list="v-hl" maxlength="40" value="' + esc(e.hosp || '') + '" placeholder="예: ○○소아청소년과"><datalist id="v-hl">' + hospNames().map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist></label>' +
+      '<label>진단·들은 말<input id="v-diag" maxlength="60" value="' + esc(e.diag || '') + '" placeholder="예: 중이염(오른쪽), 목감기"></label>' +
+      '<label>처방약<textarea id="v-rx" rows="2" maxlength="300" placeholder="예: 항생제 시럽 5mL 하루 3번 5일">' + esc(e.rx || '') + '</textarea></label>' +
+      '<label>메모<input id="v-memo" maxlength="80" value="' + esc(e.memo || '') + '" placeholder="예: 열 3일 넘으면 다시 오라고 함, 진료비 4,500원"></label>' +
+      '<div class="actions"><button class="btn" id="v-save">' + (visEdit && visEdit !== 'new' ? '고치기' : '저장') + '</button>' + (visEdit ? '<button class="btn ghost" id="v-cancel">취소</button>' : '') + '</div></div>';
+    var next = l.filter(function (v) { return v.next && v.next >= t0; }).sort(function (a, b) { return a.next < b.next ? -1 : 1; })[0];
+    return '<div class="care-intro">언제, 어느 병원에서, 무슨 진단과 약을 받았는지 쌓아 두세요. "지난번에 무슨 항생제 먹었지?"가 바로 찾아져요. 📷 약봉투 사진으로 넣으면 처방약도 자동으로 적혀요.</div>' +
+      '<div class="vis-top"><button class="btn" id="v-new">+ 진료 기록 쓰기</button><button class="btn soft" data-scan>📷 약봉투 사진으로</button></div>' +
+      (next ? '<div class="vis-next">📅 다음 진료 <b>' + next.next.slice(5).replace('-', '/') + '</b> · ' + esc(next.hosp || '') + ' <a href="#" data-vis-cal="' + next.id + '">캘린더에 넣기</a></div>' : '') +
+      (visEdit ? form : '') +
+      (l.length > 3 ? '<input class="vis-q" id="v-q" placeholder="🔍 찾기 (병원·진단·약 이름)" value="' + esc(visQ) + '">' : '') +
+      (shown.length ? '<ul class="vis-list">' + shown.map(function (v) {
+        return '<li><div class="vis-d">' + v.d.slice(2).replace(/-/g, '.') + '</div><div class="vis-b"><b>' + esc(v.hosp || '병원') + '</b>' + (v.diag ? '<div class="vis-diag">' + esc(v.diag) + '</div>' : '') +
+          (v.rx ? '<div class="vis-rx">💊 ' + esc(v.rx).replace(/\n/g, '<br>') + '</div>' : '') + (v.memo ? '<div class="vis-memo">' + esc(v.memo) + '</div>' : '') +
+          (v.next ? '<div class="vis-memo">다음 진료 ' + v.next.slice(5).replace('-', '/') + '</div>' : '') +
+          '<div class="vis-act"><a href="#" data-vis-edit="' + v.id + '">고치기</a> · <a href="#" data-vis-del="' + v.id + '">지우기</a></div></div></li>';
+      }).join('') + '</ul>' : (l.length ? '<div class="kid-empty small">찾는 기록이 없어요</div>' : '<div class="kid-empty small">아직 진료 기록이 없어요</div>')) +
+      (l.length ? '<div class="actions pad"><button class="btn ghost" id="v-share">📤 진료 기록 보내기</button></div>' : '');
+  }
+  function bindVisit(kid) {
+    var nb = $('#v-new'); if (nb) nb.addEventListener('click', function () { visEdit = 'new'; render(); var f = $('#v-h'); if (f) f.focus(); });
+    var cb = $('#v-cancel'); if (cb) cb.addEventListener('click', function () { visEdit = null; render(); });
+    var sb = $('#v-save');
+    if (sb) sb.addEventListener('click', function () {
+      var v = { d: $('#v-d').value || ymd(today0()), next: $('#v-next').value || '', hosp: $('#v-h').value.trim(), diag: $('#v-diag').value.trim(), rx: $('#v-rx').value.trim(), memo: $('#v-memo').value.trim() };
+      if (!v.hosp && !v.diag && !v.rx) { toast('병원·진단·처방약 중 하나는 적어 주세요'); return; }
+      var l = visits(kid);
+      if (visEdit && visEdit !== 'new') { l = l.map(function (x) { return x.id === visEdit ? Object.assign(x, v) : x; }); }
+      else { v.id = uid(); l.push(v); }
+      visSave(kid, l); visEdit = null; toast('저장했어요'); render();
+    });
+    $$('#kid-care [data-vis-edit]').forEach(function (a) { a.addEventListener('click', function (e) { e.preventDefault(); visEdit = a.dataset.visEdit; render(); }); });
+    $$('#kid-care [data-vis-del]').forEach(function (a) { a.addEventListener('click', function (e) { e.preventDefault(); if (!confirm('이 진료 기록을 지울까요?')) return; visSave(kid, visits(kid).filter(function (x) { return x.id !== a.dataset.visDel; })); render(); }); });
+    var q = $('#v-q'); if (q) q.addEventListener('input', function () { visQ = q.value; var pos = q.selectionStart; render(); var q2 = $('#v-q'); if (q2) { q2.focus(); q2.setSelectionRange(pos, pos); } });
+    var calA = $('#kid-care [data-vis-cal]');
+    if (calA) calA.addEventListener('click', function (e) {
+      e.preventDefault(); var v = visits(kid).filter(function (x) { return x.id === calA.dataset.visCal; })[0]; if (!v) return;
+      var d = v.next.replace(/-/g, ''), d2 = ymd(addDays(new Date(v.next + 'T00:00:00'), 1)).replace(/-/g, '');
+      window.open('https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent('다음 진료 · ' + (v.hosp || '')) + '&dates=' + d + '/' + d2 + '&details=' + encodeURIComponent((v.diag ? v.diag + '\n' : '') + '- 아이아플때'), '_blank', 'noopener');
+    });
+    var sh = $('#v-share');
+    if (sh) sh.addEventListener('click', function () {
+      if (!K.confirmShare('진료 기록')) return;
+      K.shareText(kid.name + ' 진료 기록', '[' + kid.name + ' 진료 기록]\n' + visits(kid).slice(0, 10).map(function (v) {
+        return v.d.replace(/-/g, '.') + ' ' + (v.hosp || '') + (v.diag ? '\n  진단: ' + v.diag : '') + (v.rx ? '\n  약: ' + v.rx.replace(/\n/g, ', ') : '');
+      }).join('\n') + '\n\n- 아이아플때 앱');
     });
   }
 
@@ -284,7 +356,7 @@
   }
 
   // ───── 화면 ─────
-  var SECTIONS = [['sum', '🩺 진료실 요약'], ['rx', '💊 처방약 체크'], ['form', '📝 투약의뢰서'], ['dis', '🏠 등원 언제부터?']];
+  var SECTIONS = [['sum', '🩺 진료실 요약'], ['rx', '💊 처방약'], ['visit', '📒 진료 기록'], ['form', '📝 투약의뢰서'], ['dis', '🏠 등원 언제부터?']];
   function setOpen(k) { open = k; save('careOpen', k); render(); window.scrollTo({ top: $('#kid-care').offsetTop - 70, behavior: 'smooth' }); }
   function render() {
     var box = $('#kid-care'); if (!box) return;
@@ -294,12 +366,14 @@
       box.innerHTML = tabs + '<div class="kid-empty"><b>아이를 먼저 추가해 주세요</b>진료실 요약·처방약 체크·투약의뢰서는 아이 기록으로 만들어져요. "등원 언제부터?"는 바로 볼 수 있어요.' +
         '<button class="btn" data-kid-add="care">+ 아이 추가</button></div>' + K.privNote('kid');
     } else {
-      box.innerHTML = tabs + (open === 'sum' ? renderSum(kid) : open === 'rx' ? renderRx(kid) : open === 'form' ? renderForm(kid) : renderDis()) + (open === 'dis' ? '' : K.privNote('kid'));
-      if (open === 'sum') bindSum(kid); else if (open === 'rx') bindRx(kid); else if (open === 'form') { bindForm(kid); formPrefill = null; } else bindDis();
+      box.innerHTML = tabs + (open === 'sum' ? renderSum(kid) : open === 'rx' ? renderRx(kid) : open === 'visit' ? renderVisit(kid) : open === 'form' ? renderForm(kid) : renderDis()) + (open === 'dis' ? '' : K.privNote('kid'));
+      if (open === 'sum') bindSum(kid); else if (open === 'rx') bindRx(kid); else if (open === 'visit') bindVisit(kid); else if (open === 'form') { bindForm(kid); formPrefill = null; } else bindDis();
     }
     $$('#kid-care [data-care]').forEach(function (b) { b.addEventListener('click', function () { open = b.dataset.care; save('careOpen', open); render(); }); });
   }
   K.renderCare = render;
+  K.careOpen = function (k) { open = k; save('careOpen', k); };
+  K.rxAdd = function (kid, x) { var l = rxList(kid); x.id = uid(); x.c = {}; l.push(x); rxSave(kid, l); };
 })();
 
 /* 💉 어린이 독감 무료접종 기간 배너 (지역 탭 위)
@@ -326,4 +400,58 @@
     '<div class="fb-l"><a href="https://nip.kdca.go.kr" target="_blank" rel="noopener">지정 병원 찾기 ↗</a> · <a href="#" data-go-tab="benefit" data-go-pane="sched">맞았으면 체크</a></div></div>' +
     '<button class="fb-x" aria-label="이번 절기 그만 보기">✕</button>';
   box.querySelector('.fb-x').addEventListener('click', function () { K.save('fluBannerOff', String(FLU.season)); box.hidden = true; });
+})();
+
+/* ☀️/🌙 낮에는 해·구름, 밤에는 잠자는 달 (한국 기준 대략적인 해 뜨고 지는 시각, 월별) */
+(function () {
+  var RISE = [740, 720, 650, 610, 530, 510, 520, 540, 610, 630, 700, 730];
+  var SET = [1740, 1810, 1840, 1910, 1930, 1950, 1950, 1930, 1850, 1810, 1730, 1720];
+  function apply() {
+    var d = new Date(Date.now() + 9 * 3600000), m = d.getUTCMonth(), t = d.getUTCHours() * 100 + d.getUTCMinutes();
+    var day = t >= RISE[m] && t < SET[m];
+    document.documentElement.classList.toggle('daytime', day);
+    Array.prototype.forEach.call(document.querySelectorAll('meta[name="theme-color"]'), function (mt) {
+      var dark = /dark/.test(mt.getAttribute('media') || '');
+      mt.setAttribute('content', day ? (dark ? '#2C5F8E' : '#4AA6E8') : (dark ? '#1A1F45' : '#2E3878'));
+    });
+  }
+  apply(); setInterval(apply, 5 * 60000);
+})();
+
+/* 🦠 요즘 유행해요 (질병관리청 자료, docs/data/epi.json — PC 자료 갱신 때 함께 받음) */
+(function () {
+  'use strict';
+  var K = window.KC; if (!K || !K.fetchJson) return;
+  var box = document.getElementById('epi-card'); if (!box) return;
+  var esc = K.esc;
+  K.fetchJson(K.DATA_BASE + '/epi.json?t=' + Math.floor(Date.now() / 3600000)).catch(function () { return K.fetchJson('./data/epi.json'); }).then(function (d) {
+    if (!d || !d.at || Date.now() - Date.parse(d.at) > 21 * 86400000) return;
+    var lines = [], all = [];
+    var arrow = function (v, p) { return p == null ? '' : v > p * 1.1 ? ' <b class="up">▲</b>' : v < p * 0.9 ? ' <b class="down">▼</b>' : ' <b class="flat">–</b>'; };
+    var f = d.flu, kidAge = f && f.ages && (f.ages['1-6세'] || f.ages['7-12세']);
+    if (kidAge) {
+      var a16 = f.ages['1-6세'], a712 = f.ages['7-12세'];
+      var over = f.threshold && ((a16 && a16.v >= f.threshold) || (a712 && a712.v >= f.threshold));
+      lines.push('<div class="epi-r' + (over ? ' hot' : '') + '"><span>🤧 독감</span><div>' +
+        (a16 ? '1~6세 <b>' + a16.v + '명</b>' + arrow(a16.v, a16.prev) : '') + (a16 && a712 ? ' · ' : '') + (a712 ? '7~12세 <b>' + a712.v + '명</b>' + arrow(a712.v, a712.prev) : '') +
+        '<small>외래 환자 1,000명 중 독감 의심 환자 · ' + esc(f.week) + (f.threshold ? ' · 유행 기준 ' + f.threshold + '명(전체 연령)' : '') + '</small></div></div>');
+    }
+    if (d.nat && d.nat.items) {
+      d.nat.items.forEach(function (x) {
+        var r = '<div class="epi-r' + (x.trend === 'up' ? ' hot' : '') + '"><span>' + (x.n === '수두' ? '🔴 ' : '🦠 ') + esc(x.n) + '</span><div><b>' + x.v.toLocaleString() + '명</b>' + arrow(x.v, x.prev) +
+          '<small>전국 한 주 신고 · ' + esc(d.nat.week) + ' · 앞선 4주 평균 ' + x.prev + '명</small></div></div>';
+        all.push(r); if (x.trend === 'up' || (x.v >= 50 && lines.length < 3)) lines.push(r);
+      });
+    }
+    if (!lines.length && !all.length) return;
+    box.hidden = false; box.className = 'epi-card';
+    box.innerHTML = '<div class="epi-h"><b>🦠 요즘 유행해요</b><span>질병관리청 · 늦게 들어오는 신고 때문에 2주 전 기준</span></div>' +
+      (lines.length ? lines.join('') : '<div class="epi-calm">크게 늘어난 아이 감염병은 없어요</div>') +
+      (all.length ? '<details class="epi-more"><summary>다른 감염병 보기</summary>' + all.join('') + '</details>' : '') +
+      '<div class="epi-act"><button class="chip" data-epi-dis>🏠 걸리면 등원은 언제부터?</button><button class="chip" data-triage>🤒 아이가 아파요</button></div>' +
+      '<div class="epi-src">출처: ' + esc(d.src || '질병관리청') + ' (잠정 통계, ' + esc(d.at.slice(0, 10).replace(/-/g, '.')) + ' 받음). 수족구병은 아직 공개 자료로 받을 수 없어요.</div>';
+    var b = box.querySelector('[data-epi-dis]');
+    if (b) b.addEventListener('click', function () { if (K.careOpen) K.careOpen('dis'); if (K.show) K.show('benefit'); if (K.showPane) K.showPane('care'); });
+    var t = box.querySelector('[data-triage]'); if (t) t.addEventListener('click', function () { if (K.openTriage) K.openTriage(); });
+  }).catch(function () {});
 })();

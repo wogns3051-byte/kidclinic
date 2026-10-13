@@ -846,3 +846,66 @@ select, input[type=search] { border-radius: 16px; border-width: 1.5px; }
 }
 .lang-bar { overflow: hidden; }
 .lang-bar button { flex: 1 1 0; padding: 0 4px; min-width: 0; font-size: 12px; }
+
+/* ───── v6: 낮·밤 헤더 ───── */
+.top .sun { display: none; position: absolute; right: 10px; top: calc(4px + env(safe-area-inset-top)); width: 54px; height: 54px; pointer-events: none; animation: sunspin 40s linear infinite; }
+.top .sky .day-cloud { display: none; }
+@keyframes sunspin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+html.daytime .top { background: linear-gradient(180deg, #4AA6E8 0%, #7CC6F2 100%); }
+html.daytime .top .moon, html.daytime .top .sky .stars { display: none; }
+html.daytime .top .sun, html.daytime .top .sky .day-cloud { display: block; }
+html.daytime .top .fontbtn { background: rgba(255,255,255,.28); border-color: rgba(255,255,255,.55); }
+html.daytime .brand-wrap .sub { color: rgba(255,255,255,.9); }
+@media (prefers-reduced-motion: reduce) { .top .sun { animation: none; } }
+@media (prefers-color-scheme: dark) { html.daytime .top { background: linear-gradient(180deg, #2C5F8E 0%, #3E78A8 100%); } }
+
+/* ───── v6: 유행 감염병 · 지역 혜택 · 진료 기록 · 약봉투 ───── */
+.epi-card { margin: 10px 12px 0; padding: 12px 14px; border-radius: 20px; background: var(--card); border: 1px solid var(--line); display: grid; gap: 8px; }
+.epi-h { display: grid; gap: 2px; } .epi-h b { font-family: var(--display); font-weight: 400; font-size: 16px; } .epi-h span { font-size: 11.5px; color: var(--muted); }
+.epi-r { display: grid; grid-template-columns: 92px 1fr; gap: 8px; align-items: start; font-size: 14px; padding: 8px 10px; border-radius: 14px; background: var(--bg); }
+.epi-r.hot { background: #FFF1F1; } .epi-r > span { font-weight: 700; font-size: 13px; }
+.epi-r small { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; line-height: 1.4; }
+.epi-r b.up { color: #D2334C; } .epi-r b.down { color: #12897A; } .epi-r b.flat { color: var(--muted); }
+.epi-calm { font-size: 13px; color: var(--muted); }
+.epi-more summary { font-size: 12.5px; color: var(--brand); cursor: pointer; } .epi-more .epi-r { margin-top: 6px; }
+.epi-act { display: flex; flex-wrap: wrap; gap: 6px; } .epi-act .chip { height: 34px; font-size: 12.5px; }
+.epi-src { font-size: 11px; color: var(--muted); line-height: 1.45; }
+.lb-h { margin: 10px 16px 4px; font-weight: 800; font-size: 14px; }
+.bn-card.lb .bn-big { font-size: 14px; }
+.lb-ag { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.lb-more { margin: 4px 12px 0; } .lb-more summary { font-size: 13px; color: var(--brand); padding: 6px 4px; cursor: pointer; } .lb-more .list { margin-left: -12px; margin-right: -12px; }
+.care-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.care-tabs button { flex: 1 1 calc(33% - 6px); min-width: 96px; padding: 0 6px; font-size: 12.5px; }
+.vis-top { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 12px 0; }
+.vis-next { margin: 10px 12px 0; padding: 10px 12px; border-radius: 14px; background: #EEF0FF; font-size: 13.5px; } .vis-next a { color: var(--brand); font-weight: 700; margin-left: 4px; }
+.vis-form { margin-top: 10px; }
+.vis-form textarea { border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; font-size: 15px; background: var(--bg); color: var(--ink); font-family: inherit; resize: vertical; }
+.vis-q { display: block; width: calc(100% - 24px); margin: 10px 12px 0; height: 42px; border: 1px solid var(--line); border-radius: 999px; padding: 0 14px; font-size: 14px; background: var(--card); color: var(--ink); font-family: inherit; box-sizing: border-box; }
+.vis-list { list-style: none; margin: 10px 12px 0; padding: 0; display: grid; gap: 8px; }
+.vis-list li { display: grid; grid-template-columns: 62px 1fr; gap: 10px; padding: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 18px; }
+.vis-d { font-family: var(--display); color: var(--brand); font-size: 14px; padding-top: 2px; }
+.vis-b b { font-size: 15px; } .vis-diag { font-size: 14px; margin-top: 2px; } .vis-rx, .vis-memo { font-size: 12.5px; color: var(--muted); margin-top: 4px; line-height: 1.5; }
+.vis-act { margin-top: 6px; font-size: 12.5px; } .vis-act a { color: var(--muted); }
+.rx-scan { display: block; width: calc(100% - 24px); margin: 10px 12px 0; }
+.rx-drugs { list-style: none; margin: 0; padding: 8px 10px; border-radius: 12px; background: var(--bg); display: grid; gap: 3px; font-size: 13px; }
+.rx-drugs span { color: var(--muted); font-size: 12px; }
+.med-alarm { display: flex; align-items: center; gap: 10px; margin-top: 6px; } .med-alarm .chip { height: 32px; font-size: 12.5px; } .med-alarm a { font-size: 12.5px; color: var(--muted); }
+.scan-tips { display: grid; gap: 4px; margin: 10px 0; padding: 10px 12px; border-radius: 14px; background: var(--bg); font-size: 13px; color: var(--muted); }
+.scan-btns { display: grid; gap: 8px; margin: 12px 0 8px; } .scan-btns .btn { display: grid; place-items: center; cursor: pointer; }
+.scan-prog { margin: 20px 0; display: grid; gap: 8px; }
+.scan-bar { height: 12px; border-radius: 999px; background: var(--bg); overflow: hidden; } .scan-bar i { display: block; height: 100%; width: 0; background: var(--brand); border-radius: 999px; transition: width .3s; }
+.scan-warn { margin: 8px 0; padding: 10px 12px; border-radius: 14px; background: #FFF4D6; color: #7A5A12; font-size: 13px; line-height: 1.5; }
+.scan-form { margin: 8px 0 0 !important; }
+.scan-drug { display: grid; grid-template-columns: 1.3fr 1fr 32px; gap: 6px; margin-bottom: 6px; }
+.scan-drug input { height: 40px; border: 1px solid var(--line); border-radius: 12px; padding: 0 10px; font-size: 14px; background: var(--bg); color: var(--ink); font-family: inherit; min-width: 0; }
+.sd-x { border: 0; border-radius: 50%; background: var(--bg); color: var(--muted); }
+.sd-add { height: 38px; font-size: 13px; }
+.scan-raw { margin: 10px 0; } .scan-raw summary { font-size: 12.5px; color: var(--muted); cursor: pointer; }
+.scan-raw pre { white-space: pre-wrap; font-size: 11.5px; background: var(--bg); padding: 10px; border-radius: 12px; max-height: 220px; overflow: auto; }
+@media (prefers-color-scheme: dark) {
+  .epi-r.hot { background: #3A1E26; }
+  .vis-next { background: #23284F; }
+  .scan-warn { background: var(--butter-soft); color: #F0D080; }
+}
+.scan-drug { grid-template-columns: 1.4fr 1fr .7fr 30px; }
+.scan-drug input { padding: 0 8px; font-size: 13.5px; }

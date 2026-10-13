@@ -31,12 +31,13 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="stylesheet" href="vendor/jua/jua.css">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-<link rel="stylesheet" href="style.css?v=30">
+<link rel="stylesheet" href="style.css?v=31">
 </head>
 <body>
 <header class="top">
   <svg class="sky" viewBox="0 0 390 90" preserveAspectRatio="none" aria-hidden="true">
-    <g fill="#FFFFFF"><circle cx="40" cy="14" r="1.3" opacity=".7"/><circle cx="128" cy="44" r="1" opacity=".5"/><circle cx="196" cy="12" r="1.5" opacity=".8"/><circle cx="246" cy="40" r="1" opacity=".5"/><circle cx="226" cy="24" r=".9" opacity=".5"/></g>
+    <g class="day-cloud" fill="#FFFFFF"><path d="M288 52a6 6 0 0 1 11-2 4.5 4.5 0 0 1 7 4 4 4 0 0 1-1 8h-17a5 5 0 0 1 0-10z" opacity=".85"/><path d="M196 10a4 4 0 0 1 7-1 3 3 0 0 1 5 3 2.6 2.6 0 0 1-1 5h-11a3.4 3.4 0 0 1 0-7z" opacity=".55"/></g>
+    <g class="stars" fill="#FFFFFF"><circle cx="40" cy="14" r="1.3" opacity=".7"/><circle cx="128" cy="44" r="1" opacity=".5"/><circle cx="196" cy="12" r="1.5" opacity=".8"/><circle cx="246" cy="40" r="1" opacity=".5"/><circle cx="226" cy="24" r=".9" opacity=".5"/></g>
     <path class="cloud" d="M0 90V76c10-8 24-8 32-2 6-9 22-11 31-3 8-8 24-8 31 1 9-7 24-6 30 3 9-6 22-4 28 4 8-7 22-6 28 2 9-8 25-8 32 0 8-6 22-5 28 3 9-7 24-7 31 1 8-6 22-5 28 2 8-6 20-5 26 2 10-6 24-5 32 2V90z"/>
   </svg>
   <svg class="moon" viewBox="0 0 60 52" aria-hidden="true">
@@ -46,6 +47,13 @@
     <path d="M15 34q2 1.6 4 0" stroke="#7A5A1E" stroke-width="1.5" fill="none" stroke-linecap="round"/>
     <path d="M44 14l1.2 2.6 2.6 1.2-2.6 1.2-1.2 2.6-1.2-2.6-2.6-1.2 2.6-1.2z" fill="#FFB3C7"/>
     <text x="40" y="9" font-size="9" fill="#FFFFFF" opacity=".85" font-family="Jua, sans-serif">z</text><text x="47" y="3" font-size="7" fill="#FFFFFF" opacity=".6" font-family="Jua, sans-serif">z</text>
+  </svg>
+  <svg class="sun" viewBox="0 0 60 60" aria-hidden="true">
+    <g stroke="#FFC93C" stroke-width="3.2" stroke-linecap="round"><path d="M30 3v6M30 51v6M3 30h6M51 30h6M10.9 10.9l4.2 4.2M44.9 44.9l4.2 4.2M10.9 49.1l4.2-4.2M44.9 15.1l4.2-4.2"/></g>
+    <circle cx="30" cy="30" r="15" fill="#FFD95A"/>
+    <path d="M23 28q2.5-2.6 5 0M32 28q2.5-2.6 5 0" stroke="#8A5A12" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+    <circle cx="21.5" cy="33" r="2.6" fill="#FF9DB5" opacity=".75"/><circle cx="38.5" cy="33" r="2.6" fill="#FF9DB5" opacity=".75"/>
+    <path d="M26.5 34q3.5 3.2 7 0" stroke="#8A5A12" stroke-width="1.8" fill="none" stroke-linecap="round"/>
   </svg>
   <div class="brand-wrap">
     <div class="brand"><img class="logo-img" src="icons/icon-192.png" alt=""> 아이아플때</div>
@@ -67,6 +75,7 @@
   <section class="tab" id="tab-region">
     <button class="triage-btn" data-triage><span class="tb-ic" aria-hidden="true">🤒</span><span class="tb-t"><b>아이가 아파요</b>지금 어디로 가야 할지 알려 드릴게요</span><span class="tb-ar" aria-hidden="true">›</span></button>
     <div id="flu-banner" hidden></div>
+    <div id="epi-card" hidden></div>
     <div class="quick-row"><button class="qr-btn" data-firstaid><span>🆘</span>응급처치 안내</button><button class="qr-btn" data-go-tab="benefit" data-go-pane="care"><span>🩺</span>진료실 요약</button><button class="qr-btn" data-lang-open><span>🌏</span>Language</button></div>
     <div id="holiday-banner" hidden></div>
     <div id="open-near" class="open-near"></div>
@@ -234,12 +243,13 @@
 </div>
 
 <script src="vendor/leaflet/leaflet.js"></script>
-<script src="config.js?v=30"></script>
-<script src="app.js?v=30"></script>
-<script src="growth-data.js?v=30"></script>
-<script src="kid.js?v=30"></script>
-<script src="care.js?v=30"></script>
-<script src="i18n.js?v=30"></script>
-<script src="triage.js?v=30"></script>
+<script src="config.js?v=31"></script>
+<script src="app.js?v=31"></script>
+<script src="growth-data.js?v=31"></script>
+<script src="kid.js?v=31"></script>
+<script src="care.js?v=31"></script>
+<script src="scan.js?v=31"></script>
+<script src="i18n.js?v=31"></script>
+<script src="triage.js?v=31"></script>
 </body>
 </html>

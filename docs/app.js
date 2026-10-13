@@ -132,7 +132,7 @@
     o.sd = r.sd || 0;
     if (lat != null && r.y != null) o.distance = Math.round(distKm(lat, lng, r.y, r.x) * 100) / 100;
     if (full) {
-      o.url = r.u || ''; o.park = r.pk || ''; o.trans = r.tr || [];
+      o.url = r.u || ''; o.park = r.pk || ''; o.trans = r.tr || []; o.plc = r.pl || '';
       var keys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'], hours = null;
       if (r.h) { hours = {}; keys.forEach(function (k, i) { hours[k] = span(r.h[i]); }); }
       o.detail = r.h ? { hours: hours, lunch: r.l || '', lunchSat: r.ls || '', holiNote: r.hn || '', sunNote: r.sn || '', src: r.hs === 'n' ? '국립중앙의료원' : '' } : null;
@@ -464,7 +464,8 @@
           (h.erTel ? '<a class="btn" href="tel:' + h.erTel.replace(/[^0-9]/g, '') + '">응급실 전화 ' + esc(h.erTel) + '</a>' : '') + bedsLink('ghost') + '</div>' : '') +
         (hasPos && h.when && (h.when.kind === 'open' || h.when.kind === 'lunch') ? '<div class="sub-h">℞ 진료 끝나고 약 살 곳</div><div id="after-pharm" class="after-ph"><div class="spinner small">찾는 중…</div></div>' : '') +
         '<div class="sub-h">외래 진료시간</div><table class="hours">' + rows + '</table>' +
-        (h.park || (h.trans && h.trans.length) ? '<div class="sub-h">찾아가는 길</div><div class="way">' +
+        (h.plc || h.park || (h.trans && h.trans.length) ? '<div class="sub-h">찾아가는 길</div><div class="way">' +
+          (h.plc ? '<div>📍 ' + esc(h.plc) + '</div>' : '') +
           (h.park ? '<div>🅿️ ' + esc(h.park) + '</div>' : '') +
           (h.trans || []).map(function (t) { return '<div>' + (/지하철|전철/.test(t) ? '🚇 ' : '🚌 ') + esc(t) + '</div>'; }).join('') + '</div>' : '') +
         (extra.length ? '<div class="note">' + extra.join('<br>') + '</div>' : '') +
@@ -622,16 +623,39 @@
         renderLocal();
       }).catch(function () { $('#benefit-body').innerHTML = '<div class="empty"><b>혜택 정보를 불러오지 못했어요</b>인터넷 연결을 확인해 주세요.</div>'; });
   }
+  var lbCache = {};
   function renderLocal() {
     var box = $('#local-benefit'); if (!box) return;
     var r = load('region', { sido: '', sggu: '' });
-    var name = '';
-    regions.forEach(function (x) { if (x.code === r.sido) { name = x.name; x.sggu.forEach(function (g) { if (g.code === r.sggu) name += ' ' + g.name; }); } });
-    box.innerHTML = '<div class="bn-card"><div class="bn-title">' + (name ? esc(name) + ' 출산·육아 지원' : '지역을 먼저 골라 주세요') + '</div>' +
-      '<div class="bn-body">' + (name
-        ? '시·군·구마다 출산축하금, 산후조리비, 영유아 의료비 같은 지원이 따로 있어요. 자동으로 모아 보여 드리는 기능을 준비하고 있어요. 지금은 복지로에서 지역을 골라 확인할 수 있어요.'
-        : '지역 탭에서 시·도와 시·군·구를 고르거나 📍 내 위치로를 누르면, 그 지역 혜택을 여기서 보여 드려요.') + '</div>' +
-      '<a class="btn ghost bn-btn" href="https://www.bokjiro.go.kr" target="_blank" rel="noopener">복지로에서 지역 혜택 찾기 ↗</a></div>';
+    var sidoName = '', sgName = '';
+    regions.forEach(function (x) { if (x.code === r.sido) { sidoName = x.name; x.sggu.forEach(function (g) { if (g.code === r.sggu) sgName = g.name; }); } });
+    var name = sidoName + (sgName ? ' ' + sgName : '');
+    var fallback = function (msg) {
+      box.innerHTML = '<div class="bn-card"><div class="bn-title">' + (name ? esc(name) + ' 출산·육아 지원' : '지역을 먼저 골라 주세요') + '</div>' +
+        '<div class="bn-body">' + (name ? msg : '지역 탭에서 시·도와 시·군·구를 고르거나 📍 내 위치로를 누르면, 그 지역 혜택을 여기서 보여 드려요.') + '</div>' +
+        '<a class="btn ghost bn-btn" href="https://www.bokjiro.go.kr" target="_blank" rel="noopener">복지로에서 지역 혜택 찾기 ↗</a></div>';
+    };
+    if (!r.sido) return fallback('');
+    var draw = function (d) {
+      var mine = (r.sggu && d.sg && d.sg[r.sggu]) || [], wide = d.all || [];
+      if (!mine.length && !wide.length) return fallback('이 지역의 출산·육아 혜택을 아직 찾지 못했어요. 복지로에서 지역을 골라 확인해 보세요.');
+      var card = function (x) {
+        return '<li class="bn-card lb"><div class="bn-title">' + esc(x.n) + '</div>' + (x.c ? '<div class="bn-big">' + esc(x.c) + '</div>' : '') +
+          (x.t ? '<div class="bn-who">대상 · ' + esc(x.t) + '</div>' : '') + (x.how ? '<div class="bn-body">신청 · ' + esc(x.how) + '</div>' : '') +
+          '<div class="lb-ag">' + esc(x.ag || '') + (x.tel ? ' · ' + esc(x.tel) : '') + '</div>' +
+          (x.u ? '<a class="btn ghost bn-btn" href="' + esc(x.u) + '" target="_blank" rel="noopener">자세히 · 신청 ↗</a>' : '') + '</li>';
+      };
+      var more = function (arr, id) { return arr.length > 5 ? '<details class="lb-more"><summary>' + (arr.length - 5) + '개 더 보기</summary><ul class="list">' + arr.slice(5).map(card).join('') + '</ul></details>' : ''; };
+      box.innerHTML = (mine.length ? '<div class="lb-h">📍 ' + esc(name) + ' (' + mine.length + ')</div><ul class="list">' + mine.slice(0, 5).map(card).join('') + '</ul>' + more(mine) : '') +
+        (wide.length ? '<div class="lb-h">🗺 ' + esc(sidoName) + ' 전체 (' + wide.length + ')</div><ul class="list">' + wide.slice(0, 5).map(card).join('') + '</ul>' + more(wide) : '') +
+        '<div class="note pad">출처: 행정안전부 대한민국 공공서비스(혜택) 정보 (' + esc((d.at || '').slice(0, 10).replace(/-/g, '.')) + ' 받음). 지원 금액·조건은 바뀔 수 있으니 신청 전에 꼭 확인하세요.</div>';
+    };
+    if (lbCache[r.sido]) return draw(lbCache[r.sido]);
+    box.innerHTML = '<div class="spinner">불러오는 중…</div>';
+    fetchJson(DATA_BASE + '/lb/' + r.sido + '.json?t=' + Math.floor(Date.now() / 86400000))
+      .catch(function () { return fetchJson('./data/lb/' + r.sido + '.json'); })
+      .then(function (d) { lbCache[r.sido] = d; draw(d); })
+      .catch(function () { fallback('시·군·구마다 출산축하금, 산후조리비, 영유아 의료비 같은 지원이 따로 있어요. 자동으로 모아 보여 드리는 기능을 준비하고 있어요. 지금은 복지로에서 지역을 골라 확인할 수 있어요.'); });
   }
   document.addEventListener('click', function (e) {
     var b = e.target.closest && e.target.closest('[data-go-tab]');
@@ -664,7 +688,7 @@
   // ───── kid.js 에 도구 넘기기 ─────
   var KC = window.KC = { $: $, $$: $$, esc: esc, load: load, save: save, toast: toast, api: api, show: show,
     getDB: getDB, kstNow: kstNow, locate: locate, card: card, loadBenefit: loadBenefit, onShow: {},
-    ER_BEDS_URL: ER_BEDS_URL,
+    ER_BEDS_URL: ER_BEDS_URL, fetchJson: fetchJson, DATA_BASE: DATA_BASE,
     shareText: function (t, x) { if (navigator.share) navigator.share({ title: t, text: x }).catch(function () {}); else if (navigator.clipboard) navigator.clipboard.writeText(x).then(function () { toast('복사했어요'); }); } };
 
   getDB().then(function (db) { KC.db = db; }).catch(function () {});
