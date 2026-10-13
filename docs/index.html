@@ -31,7 +31,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="stylesheet" href="vendor/jua/jua.css">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-<link rel="stylesheet" href="style.css?v=29">
+<link rel="stylesheet" href="style.css?v=30">
 </head>
 <body>
 <header class="top">
@@ -66,6 +66,8 @@
   <!-- 지역 -->
   <section class="tab" id="tab-region">
     <button class="triage-btn" data-triage><span class="tb-ic" aria-hidden="true">🤒</span><span class="tb-t"><b>아이가 아파요</b>지금 어디로 가야 할지 알려 드릴게요</span><span class="tb-ar" aria-hidden="true">›</span></button>
+    <div id="flu-banner" hidden></div>
+    <div class="quick-row"><button class="qr-btn" data-firstaid><span>🆘</span>응급처치 안내</button><button class="qr-btn" data-go-tab="benefit" data-go-pane="care"><span>🩺</span>진료실 요약</button><button class="qr-btn" data-lang-open><span>🌏</span>Language</button></div>
     <div id="holiday-banner" hidden></div>
     <div id="open-near" class="open-near"></div>
     <div class="panel">
@@ -121,6 +123,7 @@
   <section class="tab" id="tab-night" hidden>
     <div class="alert">아이가 숨쉬기 힘들어하거나, 경련·의식저하가 있으면 병원을 찾지 말고 <a href="tel:119"><b>119</b></a>에 바로 전화하세요.</div>
     <button class="triage-btn" data-triage><span class="tb-ic" aria-hidden="true">🤒</span><span class="tb-t"><b>응급실까지 가야 할까요?</b>증상을 고르면 알려 드릴게요</span><span class="tb-ar" aria-hidden="true">›</span></button>
+    <div class="quick-row"><button class="qr-btn" data-firstaid><span>🆘</span>응급처치 안내</button><button class="qr-btn" data-go-tab="benefit" data-go-pane="care"><span>🩺</span>진료실 요약</button></div>
     <div class="panel">
       <div class="seg" id="night-mode">
         <button class="on" data-m="near">내 주변 20km</button>
@@ -172,6 +175,7 @@
     <div class="panel">
       <div class="seg" id="kid-seg">
         <button class="on" data-k="med"><i>💊</i>해열제</button>
+        <button data-k="care"><i>🩺</i>진료</button>
         <button data-k="card"><i>🪪</i>응급카드</button>
         <button data-k="sched"><i>📅</i>일정</button>
         <button data-k="grow"><i>📏</i>성장</button>
@@ -179,7 +183,9 @@
       </div>
       <div class="bk-row"><button class="bk-btn" id="bk-out">💾 기록 백업하기</button><button class="bk-btn" id="bk-in">📂 백업 불러오기</button><input type="file" id="bk-file" accept=".json,application/json" hidden></div>
     </div>
+    <div id="kid-bar" class="kid-bar" hidden></div>
     <div id="kid-med" class="kid-pane"></div>
+    <div id="kid-care" class="kid-pane" hidden></div>
     <div id="kid-card" class="kid-pane" hidden></div>
     <div id="kid-sched" class="kid-pane" hidden></div>
     <div id="kid-grow" class="kid-pane" hidden></div>
@@ -228,10 +234,12 @@
 </div>
 
 <script src="vendor/leaflet/leaflet.js"></script>
-<script src="config.js?v=29"></script>
-<script src="app.js?v=29"></script>
-<script src="growth-data.js?v=29"></script>
-<script src="kid.js?v=29"></script>
-<script src="triage.js?v=29"></script>
+<script src="config.js?v=30"></script>
+<script src="app.js?v=30"></script>
+<script src="growth-data.js?v=30"></script>
+<script src="kid.js?v=30"></script>
+<script src="care.js?v=30"></script>
+<script src="i18n.js?v=30"></script>
+<script src="triage.js?v=30"></script>
 </body>
 </html>

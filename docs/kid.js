@@ -8,6 +8,7 @@
   if (!K) return;
   var $ = K.$, $$ = K.$$, esc = K.esc, load = K.load, save = K.save, toast = K.toast;
 
+  var pane = load('kidPane', 'med');
   // ───── 공통 ─────
   function pad(n) { return (n < 10 ? '0' : '') + n; }
   function hm(t) { var d = new Date(t); return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
@@ -33,6 +34,7 @@
   };
   K.PRIV = PRIV;
   function privNote(k) { return '<div class="priv">' + PRIV[k] + '</div>'; }
+  K.privNote = privNote; K.confirmShare = function (w) { return confirmShare(w); };
   function confirmShare(what) {
     return confirm(what + '에는 아이 이름·생년월일 같은 개인정보가 들어 있어요.\n받는 사람을 꼭 확인하고 보내 주세요.\n\n계속할까요?');
   }
@@ -41,7 +43,8 @@
   function kids() { return load('kids', { list: [], cur: '' }); }
   function saveKids(k) { save('kids', k); }
   function curKid() { var k = kids(); return k.list.filter(function (x) { return x.id === k.cur; })[0] || k.list[0] || null; }
-  K.curKid = curKid;
+  K.curKid = curKid; K.kids = kids; K.saveKids = saveKids;
+  K.ageText = function (b) { return ageText(b); };
   function ageText(birth) {
     if (!birth) return '';
     var b = new Date(birth + 'T00:00:00'), n = new Date();
@@ -56,26 +59,31 @@
     var b = new Date(birth + 'T00:00:00'), n = new Date();
     return (n.getFullYear() - b.getFullYear()) * 12 + (n.getMonth() - b.getMonth()) - (n.getDate() < b.getDate() ? 1 : 0);
   }
-  function kidPicker(kid, where) {
-    var k = kids();
-    return '<div class="kid-pick">' + k.list.map(function (x) {
-      return '<button class="chip' + (kid && x.id === kid.id ? ' on' : '') + '" data-kid="' + x.id + '" data-where="' + where + '">' + esc(x.name || '아이') + '</button>';
-    }).join('') + '<button class="chip add" data-kid-add="' + where + '">+ 아이 추가</button></div>';
+  // 아이 고르기 줄은 우리아이 탭 위에 하나만 둔다 (모든 메뉴가 같은 아이 목록을 쓴다)
+  function kidPicker() { return ''; }
+  function renderBar() {
+    var bar = $('#kid-bar'); if (!bar) return;
+    var k = kids(), kid = curKid();
+    if (!k.list.length || pane === 'bn') { bar.hidden = true; bar.innerHTML = ''; return; }
+    bar.hidden = false;
+    bar.innerHTML = '<div class="kid-pick">' + k.list.map(function (x) {
+      return '<button class="chip' + (kid && x.id === kid.id ? ' on' : '') + '" data-kid="' + x.id + '">' + esc(x.name || '아이') + '</button>';
+    }).join('') + '<button class="chip add" data-kid-add="bar">+ 아이 추가</button></div>' +
+      '<div class="kid-bar-hint">' + (k.list.length > 1 ? '고른 아이 기준으로 모든 메뉴가 바뀌어요' : '한 번 추가하면 해열제·진료·응급카드·일정·성장에 모두 같이 쓰여요') + '</div>';
   }
   document.addEventListener('click', function (e) {
     var b = e.target.closest && e.target.closest('[data-kid]');
-    if (b) { var k = kids(); k.cur = b.dataset.kid; saveKids(k); render(b.dataset.where); return; }
+    if (b) { var k = kids(); k.cur = b.dataset.kid; saveKids(k); showPane(pane); return; }
     var a = e.target.closest && e.target.closest('[data-kid-add]');
     if (a) {
       var name = (prompt('아이 이름(또는 별명)을 적어 주세요\n(이 휴대폰에만 저장돼요. 별명도 괜찮아요)') || '').trim();
       if (!name) return;
       var k2 = kids(), id = uid();
       k2.list.push({ id: id, name: name.slice(0, 12) }); k2.cur = id; saveKids(k2);
-      render(a.dataset.kidAdd);
-      if (a.dataset.kidAdd === 'med') toast('생일을 응급 카드에 넣어 두면 나이에 맞는 안내가 나와요');
+      showPane(pane);
+      toast(k2.list.length > 1 ? '추가했어요. 위에서 아이를 바꿀 수 있어요' : '추가했어요. 생일을 응급 카드에 넣어 두면 나이에 맞는 안내가 나와요');
     }
   });
-  function render(where) { if (where === 'card') renderCard(); else if (where === 'sched') renderSched(); else if (where === 'grow') renderGrow(); else renderMed(); }
 
   // ───── 해열제 기록 ─────
   // 최소 간격·하루 최대 횟수는 국내 어린이용 해열제 설명서의 일반적인 기준. 제품마다 다를 수 있어 설명서가 우선.
@@ -92,7 +100,7 @@
     '<li>체온·해열제·소변을 기록해 두면 진료 때 도움이 돼요.</li>' +
     '<li>열이 3일 넘게 가거나, 처지고 잘 못 먹거나, 소변이 줄거나, 경련이 있으면 <a href="#" data-open-triage>"어디로 가야 해요?"</a>를 다시 확인하세요.</li>' +
     '</ul><div class="hc-src">여러 병원의 공개 건강정보에서 공통으로 안내하는 내용이에요. 자세한 내용은 <a href="https://health.kdca.go.kr" target="_blank" rel="noopener">국가건강정보포털(질병관리청)</a>을 참고하세요.</div></details>';
-  K.HOMECARE = HOMECARE;
+  K.HOMECARE = HOMECARE; K.DRUGS = DRUGS;
   document.addEventListener('click', function (e) {
     var a = e.target.closest && e.target.closest('[data-open-triage]');
     if (a) { e.preventDefault(); if (K.openTriage) K.openTriage(); }
@@ -120,6 +128,7 @@
     return '<div class="tc-box"><div class="tc-h">최근 48시간 체온 <span>💊 = 해열제 먹인 때 · 빨간 영역 = 38℃ 이상</span></div>' + svg + '</div>';
   }
   function logs(id) { return load('kidlog:' + id, []); }
+  K.kidLogs = function (id) { return logs(id); };
   function saveLogs(id, l) { save('kidlog:' + id, l.slice(-300)); }
   function pickedTime() {
     var v = ($('#med-time') || {}).value;
@@ -281,12 +290,12 @@
         $$('#kid-card [data-f]').forEach(function (el) { me[el.dataset.f] = el.value.trim(); });
         if (!me.name) me.name = '아이';
         if (me.weight) me.weightAt = new Date().toISOString().slice(0, 10);
-        saveKids(k); editing = false; toast('저장했어요'); renderCard();
+        saveKids(k); editing = false; toast('저장했어요'); showPane('card');
       });
       $('#card-del').addEventListener('click', function () {
-        if (!confirm(kid.name + '의 카드와 해열제·일정·성장 기록을 모두 지울까요?')) return;
+        if (!confirm(kid.name + '의 카드와 해열제·처방약·일정·성장 기록을 모두 지울까요?')) return;
         var k = kids(); k.list = k.list.filter(function (x) { return x.id !== kid.id; }); k.cur = k.list[0] ? k.list[0].id : '';
-        saveKids(k); try { ['kidlog:', 'kiddone:', 'kidgrow:'].forEach(function (p) { localStorage.removeItem(p + kid.id); }); } catch (e) {} editing = false; renderCard();
+        saveKids(k); try { ['kidlog:', 'kiddone:', 'kidgrow:', 'kidrx:'].forEach(function (p) { localStorage.removeItem(p + kid.id); }); } catch (e) {} editing = false; showPane('card');
       });
       return;
     }
@@ -361,6 +370,8 @@
     });
     return out;
   }
+  K.wrapLines = function (c, t, w) { return wrapLines(c, t, w); };
+  K.roundRect = function (c, x, y, w, h, r) { roundRect(c, x, y, w, h, r); };
   function roundRect(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
   function drawLock(kid, pick, theme) {
     var Th = LOCK_THEMES[theme] || LOCK_THEMES.pink;
@@ -510,17 +521,18 @@
       if (base) { it.s = addSpan(base, dep[1]); it.e = addSpan(base, dep[2]); it.note = dep[3] + ' (앞 접종 ' + base.replace(/-/g, '.') + ' 기준)'; }
       return it;
     });
-    // 독감: 생후 6개월 ~ 만 13세, 매년 10월 (처음 맞는 해는 4주 간격 2회)
-    var from = addSpan(kid.birth, 'm6'), to = addSpan(kid.birth, 'y13'), y = from.getFullYear(), first = true;
-    for (; y <= to.getFullYear(); y++) {
-      var s = new Date(y, 9, 1), e = new Date(y, 11, 31);
-      if (e < from || s > to) continue;
+    // 독감: 생후 6개월 ~ 14세 (2026-2027절기부터 14세까지 무료), 9월 하순 ~ 다음 해 4월 (처음 맞는 해는 4주 간격 2회)
+    var from = addSpan(kid.birth, 'm6'), by = +kid.birth.slice(0, 4), y = from.getFullYear(), first = true;
+    if (from.getMonth() < 4) y--; // 1~4월에 6개월이 되면 지난해 절기부터
+    for (; y - by <= 14; y++) {
+      var s = new Date(y, 8, 21), e = new Date(y + 1, 3, 30);
+      if (e < from) continue;
       if (s < from) s = from;
-      list.push({ id: 'flu' + y, c: 'flu', n: y + '년 어린이 독감 접종' + (first ? ' (1차)' : ''), s: s, e: e,
+      list.push({ id: 'flu' + y, c: 'flu', n: y + '~' + String(y + 1).slice(2) + ' 절기 어린이 독감 접종' + (first ? ' (1차)' : ''), s: s, e: e,
         note: first ? '처음 맞는 해에는 4주 간격으로 2회 맞아요. 시작 날짜는 해마다 공지돼요' : '매년 1회. 시작 날짜는 해마다 공지돼요' });
       var fd = first && doneDate(dn['flu' + y]);
       if (fd) {
-        list.push({ id: 'flu' + y + 'b', c: 'flu', n: y + '년 어린이 독감 접종 (2차)', s: addSpan(fd, 'd28'), e: addSpan(fd, 'd56'),
+        list.push({ id: 'flu' + y + 'b', c: 'flu', n: y + '~' + String(y + 1).slice(2) + ' 절기 어린이 독감 접종 (2차)', s: addSpan(fd, 'd28'), e: addSpan(fd, 'd56'),
           note: '1차(' + fd.replace(/-/g, '.') + ') 4주 뒤에 맞아요' });
       }
       first = false;
@@ -695,7 +707,7 @@
 
   // ───── 💾 백업 내보내기·불러오기 ─────
   // 휴대폰에만 저장하는 대신, 이용자가 직접 파일로 옮길 수 있게 한다. (서버를 거치지 않음)
-  var BK_KEYS = /^(kids|kidlog:.+|kiddone:.+|kidgrow:.+|favs|region|bigFont|kidPane)$/;
+  var BK_KEYS = /^(kids|kidlog:.+|kiddone:.+|kidgrow:.+|kidrx:.+|lang|favs|region|bigFont|kidPane)$/;
   function backupData() {
     var data = {};
     for (var i = 0; i < localStorage.length; i++) {
@@ -858,15 +870,17 @@
   }
 
   // ───── 우리아이 탭 안 전환 ─────
-  var pane = load('kidPane', 'med');
   function showPane(k) {
     pane = k; save('kidPane', k);
     $$('#kid-seg button').forEach(function (b) { b.classList.toggle('on', b.dataset.k === k); });
-    $('#kid-med').hidden = k !== 'med'; $('#kid-card').hidden = k !== 'card'; $('#kid-sched').hidden = k !== 'sched'; $('#kid-grow').hidden = k !== 'grow'; $('#benefit-body').hidden = k !== 'bn';
-    if (k === 'med') renderMed(); else if (k === 'card') renderCard(); else if (k === 'sched') renderSched(); else if (k === 'grow') renderGrow(); else K.loadBenefit();
+    ['med', 'care', 'card', 'sched', 'grow'].forEach(function (x) { var el = $('#kid-' + x); if (el) el.hidden = k !== x; });
+    $('#benefit-body').hidden = k !== 'bn';
+    renderBar();
+    if (k === 'med') renderMed(); else if (k === 'care') { if (K.renderCare) K.renderCare(); } else if (k === 'card') renderCard(); else if (k === 'sched') renderSched(); else if (k === 'grow') renderGrow(); else K.loadBenefit();
   }
   $$('#kid-seg button').forEach(function (b) { b.addEventListener('click', function () { showPane(b.dataset.k); }); });
   K.onShow.benefit = function (opt) { showPane(opt && opt.pane ? opt.pane : pane); };
+  K.showPane = function (k) { showPane(k); };
   setInterval(function () { if (!$('#kid-med').hidden && !$('#tab-benefit').hidden && document.activeElement && document.activeElement.tagName !== 'INPUT') renderMed(); }, 60000);
 
   // ───── 큰 글씨 ─────
