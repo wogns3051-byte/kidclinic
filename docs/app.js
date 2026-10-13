@@ -123,6 +123,25 @@
     var x = Math.pow(Math.sin((c - a) * k / 2), 2) + Math.cos(a * k) * Math.cos(c * k) * Math.pow(Math.sin((d - b) * k / 2), 2);
     return 2 * R * Math.asin(Math.sqrt(x));
   }
+  // 소아과와 함께 보는 과 (심평원 과목별 전문의 수·진료과목 자료)
+  var ALSO = [['ent', '이비인후과', '👂'], ['eye', '안과', '👁'], ['skin', '피부과', '🧴'], ['ortho', '정형외과', '🦴']];
+  function alsoOf(r) {
+    var out = [];
+    ALSO.forEach(function (a) {
+      var sp = (r.sp || []).filter(function (x) { return x[0] === a[1]; })[0];
+      if (sp) out.push({ k: a[0], n: a[1], ic: a[2], sdr: sp[1] });
+      else if ((r.sj || []).indexOf(a[1]) >= 0) out.push({ k: a[0], n: a[1], ic: a[2], sdr: 0 });
+    });
+    return out;
+  }
+  // 📝 나만의 병원 메모 (이 휴대폰에만)
+  var MEMO_TAGS = ['👂 귀·코 잘 봐줘요', '👁 눈 잘 봐줘요', '🧴 피부 잘 봐줘요', '🤧 감기·호흡기', '😊 친절해요', '🧸 아이가 안 무서워해요', '💬 설명을 잘해줘요', '⏰ 대기 짧아요', '⏳ 대기 길어요', '🅿️ 주차 편해요', '💉 접종 잘해줘요', '💊 약 적게 써요'];
+  function memos() { return load('hmemo', {}); }
+  function memoOf(id) { return memos()[id] || null; }
+  function memoLine(id) {
+    var m = memoOf(id); if (!m || (!(m.t || []).length && !m.x)) return '';
+    return '<div class="memo-line">📝 ' + (m.t || []).map(function (i) { return esc(MEMO_TAGS[i] || ''); }).join(' · ') + (m.x ? ((m.t || []).length ? ' · ' : '') + esc(m.x.length > 30 ? m.x.slice(0, 30) + '…' : m.x) : '') + '</div>';
+  }
   function toView(r, db, now, lat, lng, full) {
     var reg = db.meta.regions[r.s] || { name: '', sggu: {} };
     var o = { id: r.i, name: r.n, type: r.t, sido: reg.name, sggu: reg.sggu[r.g] || '', addr: r.a, tel: r.p,
@@ -130,6 +149,7 @@
       open: openState(r, now, db.holis), night: isNight(r), weekend: isWeekend(r), moonlight: !!r.m, moonKind: r.m || 0, general: r.k === 3, er: !!r.er, erTel: r.et || '', erLevel: r.el || '' };
     o.when = whenInfo(r, now, db.holis, o.open);
     o.sd = r.sd || 0;
+    o.also = alsoOf(r);
     if (lat != null && r.y != null) o.distance = Math.round(distKm(lat, lng, r.y, r.x) * 100) / 100;
     if (full) {
       o.url = r.u || ''; o.park = r.pk || ''; o.trans = r.tr || []; o.plc = r.pl || ''; o.staff = r.dz || null; o.specs = r.sp || []; o.subjects = r.sj || [];
@@ -187,6 +207,8 @@
         if (q.moonlight === '1' && !v.moonlight) return;
         if (q.er === '1' && !v.er) return;
         if (q.hospitalOnly === '1' && /의원$/.test(v.type)) return;
+        var miss = ALSO.some(function (a) { return q[a[0]] === '1' && !v.also.some(function (x) { return x.k === a[0]; }); });
+        if (miss) return;
         out.push(v);
       });
       var rank = function (o) { return o.open === 'open' ? 0 : o.open === 'lunch' ? 1 : o.open === 'unknown' ? 2 : 3; };
@@ -225,6 +247,7 @@
     if (h.er) t.push('<span class="tag er">야간 응급실</span>');
     if (h.weekend) t.push('<span class="tag weekend">일·공휴일</span>');
     if (h.sd) t.push('<span class="tag sd">소아과 전문의' + (h.sd > 1 ? ' ' + h.sd + '명' : '') + '</span>');
+    (h.also || []).forEach(function (a) { t.push('<span class="tag also">' + a.ic + ' ' + a.n + (a.sdr ? ' 전문의' : '도 봐요') + '</span>'); });
     if (h.general) t.push('<span class="tag">일반 의원·소아 진료</span>');
     else if (h.type) t.push('<span class="tag">' + esc(h.type) + '</span>');
     return t.join('');
@@ -241,7 +264,7 @@
       (h.distance != null ? '<span class="dist">' + (h.distance < 1 ? Math.round(h.distance * 1000) + 'm' : h.distance.toFixed(1) + 'km') + '</span>' : '') + '</div>' +
       '<div class="addr">' + esc(h.addr) + '</div>' +
       (h.when ? '<div class="when' + (h.when.soon ? ' soon' : '') + '">' + whenText(h.when) + '</div>' : '') +
-      '<div class="meta">' + tags(h) + '</div>' + quickActs(h) + '</li>';
+      '<div class="meta">' + tags(h) + '</div>' + memoLine(h.id) + quickActs(h) + '</li>';
   }
   // 목록에서 바로 전화·길찾기 (상세를 열지 않고)
   function quickActs(h) {
@@ -305,7 +328,8 @@
         (ios ? '<div class="home-tip">아이폰은 Safari에서 공유 → <b>홈 화면에 추가</b>로 설치해야 고정이 오래 유지돼요. (Safari는 오래 안 열면 저장된 설정을 지울 수 있어요)</div>' : '');
       $('#home-off').addEventListener('click', function () { if (!confirm('우리 동네 고정을 해제할까요?')) return; save('home', null); toast('고정을 해제했어요'); renderHomeRow(); renderHomeCard(); });
     } else if (sd) {
-      row.innerHTML = '<button class="btn soft home-pin" id="home-pin">📌 ' + esc(regionName(sd, sg)) + '를 우리 동네로 고정' + (hm ? ' (지금: ' + esc(hm.name) + ')' : '') + '</button>';
+      var rn = regionName(sd, sg), lc = rn.charCodeAt(rn.length - 1), jo = lc >= 0xAC00 && lc <= 0xD7A3 && (lc - 0xAC00) % 28 ? '을' : '를';
+      row.innerHTML = '<button class="btn soft home-pin" id="home-pin">📌 ' + esc(rn) + jo + ' 우리 동네로 고정' + (hm ? ' (지금: ' + esc(hm.name) + ')' : '') + '</button>';
       $('#home-pin').addEventListener('click', function () {
         save('home', { sido: sd, sggu: sg, name: regionName(sd, sg) });
         if (navigator.storage && navigator.storage.persist) { try { navigator.storage.persist(); } catch (e) {} }
@@ -352,7 +376,8 @@
     if (!more) loading(list, cnt);
     var p = Object.assign({ sido: sido, sggu: sggu, q: kw, limit: 50, offset: regionOffset }, chipFilters('region'));
     api('/hospitals', p).then(function (d) {
-      render(list, cnt, d, more);
+      var alsoOn = ALSO.some(function (a) { return p[a[0]] === '1'; });
+      render(list, cnt, d, more, alsoOn ? '함께 보는 과 자료(진료과목·과목별 전문의)는 받는 중이라 아직 비어 있을 수 있어요. 며칠 뒤 다시 확인해 주세요.' : '');
       $('#region-more').hidden = regionOffset + 50 >= d.total;
     }).catch(function (e) { fail(list, e); });
   }
@@ -560,6 +585,26 @@
       '<div class="st-note">' + (peds ? '분홍 동그라미는 소아청소년과 전문의, ' : '') + '🧑‍⚕️ 전문의 · 👤 일반의·수련의예요. 의사 이름·사진·세부 전문분야(예: 알레르기·성장)는 공공데이터에 없어서, 병원이 직접 올린 소개를 보세요.</div>' +
       '<a class="btn ghost st-link" href="https://m.search.naver.com/search.naver?query=' + encodeURIComponent(h.name + ' ' + (h.sggu || '') + ' 의료진') + '" target="_blank" rel="noopener">🔎 의료진 소개 찾아보기 (네이버) ↗</a></div>';
   }
+  function memoBlock(h) {
+    var m = memoOf(h.id) || { t: [], x: '' };
+    return '<div class="sub-h">📝 내 메모</div><div class="memo-box" data-memo="' + esc(h.id) + '">' +
+      '<div class="memo-tags">' + MEMO_TAGS.map(function (t, i) { return '<button class="chip' + ((m.t || []).indexOf(i) >= 0 ? ' on' : '') + '" data-mt="' + i + '">' + t + '</button>'; }).join('') + '</div>' +
+      '<textarea id="memo-x" maxlength="100" rows="2" placeholder="예: 김○○ 선생님이 중이염 잘 봐줌, 오전 10시 전이 한산">' + esc(m.x || '') + '</textarea>' +
+      '<button class="btn ghost" id="memo-save">메모 저장</button>' +
+      '<div class="priv">🔒 내 메모는 <b>이 휴대폰에만</b> 저장되고 다른 사람에게 보이지 않아요. 백업 파일에는 들어가요.</div></div>';
+  }
+  function bindMemo(h) {
+    var box = document.querySelector('.memo-box'); if (!box) return;
+    var put = function (quiet) {
+      var all = memos(), t = $$('.memo-box [data-mt].on').map(function (b) { return +b.dataset.mt; }), x = ($('#memo-x').value || '').trim();
+      if (t.length || x) all[h.id] = { t: t, x: x, at: new Date().toISOString().slice(0, 10) }; else delete all[h.id];
+      save('hmemo', all); if (!quiet) toast(t.length || x ? '내 메모를 저장했어요' : '메모를 지웠어요');
+      var li = document.querySelector('.item[data-id="' + h.id + '"] .memo-line'), item = document.querySelector('#region-list .item[data-id="' + h.id + '"]');
+      if (li) li.outerHTML = memoLine(h.id); else if (item) { var qa = item.querySelector('.qa'); if (qa) qa.insertAdjacentHTML('beforebegin', memoLine(h.id)); }
+    };
+    $$('.memo-box [data-mt]').forEach(function (b) { b.addEventListener('click', function () { b.classList.toggle('on'); put(true); }); });
+    $('#memo-save').addEventListener('click', function () { put(false); });
+  }
   function holWeek(h) {
     var box = document.getElementById('hol-week'); if (!box || !h.detail) return;
     getDB().then(function (db) {
@@ -612,10 +657,12 @@
           (h.park ? '<div>🅿️ ' + esc(h.park) + '</div>' : '') +
           (h.trans || []).map(function (t) { return '<div>' + (/지하철|전철/.test(t) ? '🚇 ' : '🚌 ') + esc(t) + '</div>'; }).join('') + '</div>' : '') +
         staffBlock(h) +
+        memoBlock(h) +
         (REPORT_URL ? '<button class="btn ghost report" id="report-btn">정보가 달라요</button>' : '') +
         '<div class="note">진료시간·휴진은 병원 사정으로 바뀔 수 있어요. 방문 전 꼭 전화로 확인하세요.<br>자료: 건강보험심사평가원 병원정보서비스' + (d.src ? ' · 진료시간: ' + d.src : '') + (h.moonlight ? ' · 달빛어린이병원: 국립중앙의료원' : '') + '</div>';
       if ($('#after-pharm')) afterPharm(h, $('#after-pharm'));
       holWeek(h);
+      bindMemo(h);
       $('#share-btn').addEventListener('click', function () {
         var tk = d.hours ? d.hours[todayKey] : null;
         KC.shareText(h.name,
