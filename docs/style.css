@@ -1053,3 +1053,10 @@ html.daytime .brand-wrap .sub { color: rgba(255,255,255,.9); }
 .memo-filter { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 12px 0; } .memo-filter .chip { height: 32px; font-size: 12.5px; }
 .memo-q { margin-top: 8px !important; }
 .memo-act { margin: 8px 12px 0; } .memo-act .chip { height: 32px; font-size: 12.5px; }
+.dl-h { font-size: 12.5px; font-weight: 800; color: var(--muted); margin-top: 2px; }
+.dl { display: grid; gap: 6px; }
+.dl-a { display: grid; gap: 1px; padding: 9px 12px; border-radius: 14px; background: var(--bg); text-decoration: none; color: var(--ink); }
+.dl-a b { font-size: 14px; } .dl-a small { font-size: 11.5px; color: var(--muted); word-break: break-all; }
+.dl-a.mine { background: #FFF8E6; border: 1px solid #FFD58A; }
+.dl-save { height: 38px; font-size: 12.5px; }
+@media (prefers-color-scheme: dark) { .dl-a.mine { background: var(--butter-soft); border-color: #6A5A2A; } }

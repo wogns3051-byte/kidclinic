@@ -617,7 +617,7 @@
   // 👩‍⚕️ 의료진·진료과목 (심평원 자료: 의사 구성, 과목별 전문의 수, 진료과목)
   function staffBlock(h) {
     var z = h.staff || [0, 0, 0, 0], total = h.doctors || 0;
-    if (!total && !h.specs.length && !h.subjects.length) return '';
+    if (!total && !h.specs.length && !h.subjects.length) return '<div class="sub-h">의료진 · 전문분야</div><div class="staff">' + doctorLinks(h) + '</div>';
     var parts = [];
     if (z[0]) parts.push('전문의 ' + z[0] + '명'); if (z[1]) parts.push('일반의 ' + z[1] + '명');
     if (z[2]) parts.push('레지던트 ' + z[2] + '명'); if (z[3]) parts.push('인턴 ' + z[3] + '명');
@@ -634,7 +634,45 @@
       (h.subjects.length ? '<div class="st-row"><span>진료과목</span><div class="st-chips sj">' + h.subjects.map(function (x) {
         return '<em class="' + (/소아/.test(x) ? 'peds' : '') + '">' + esc(x) + '</em>'; }).join('') + '</div></div>' : '') +
       '<div class="st-note">' + (peds ? '분홍 동그라미는 소아청소년과 전문의, ' : '') + '🧑‍⚕️ 전문의 · 👤 일반의·수련의예요. 의사 이름·사진·세부 전문분야(예: 알레르기·성장)는 공공데이터에 없어서, 병원이 직접 올린 소개를 보세요.</div>' +
-      '<a class="btn ghost st-link" href="https://m.search.naver.com/search.naver?query=' + encodeURIComponent(h.name + ' ' + (h.sggu || '') + ' 의료진') + '" target="_blank" rel="noopener">🔎 의료진 소개 찾아보기 (네이버) ↗</a></div>';
+      doctorLinks(h) + '</div>';
+  }
+  // 👩‍⚕️ 의료진 소개 페이지로 더 정확하게: ① 내가 저장한 페이지 ② 병원 누리집(심평원 등록) ③ 네이버 지도(병원 위치 중심) ④ 네이버 검색(이름+동네+도로명)
+  function roadOf(addr) {
+    var m = /([가-힣0-9]+(?:로|길))\s*\d/.exec(addr || '') || /([가-힣0-9]+(?:동|읍|면|리))(?:\s|$)/.exec(addr || '');
+    return m ? m[1] : '';
+  }
+  function mercator(lat, lng) {
+    var x = lng * 20037508.34 / 180, y = Math.log(Math.tan((90 + lat) * Math.PI / 360)) / (Math.PI / 180) * 20037508.34 / 180;
+    return x.toFixed(1) + ',' + y.toFixed(1);
+  }
+  function doctorLinks(h) {
+    var m = memoOf(h.id) || {}, q = h.name + ' ' + (h.sggu || '') + ' ' + roadOf(h.addr);
+    var home = h.url ? (/^https?:/.test(h.url) ? h.url : 'http://' + h.url) : '';
+    var nmap = 'https://map.naver.com/p/search/' + encodeURIComponent(h.name) + (h.lat != null ? '?c=' + mercator(h.lat, h.lng) + ',17,0,0,0,dh' : '');
+    return '<div class="dl-h">의료진 소개 보러 가기</div><div class="dl">' +
+      (m.u ? '<a class="dl-a mine" href="' + esc(m.u) + '" target="_blank" rel="noopener"><b>📌 내가 저장한 의료진 페이지</b><small>' + esc(m.u.replace(/^https?:\/\//, '').slice(0, 40)) + '</small></a>' : '') +
+      (home ? '<a class="dl-a" href="' + esc(home) + '" target="_blank" rel="noopener"><b>🏥 병원 누리집</b><small>심평원에 병원이 등록한 주소예요</small></a>' : '') +
+      '<a class="dl-a" href="' + nmap + '" target="_blank" rel="noopener"><b>🟢 네이버 지도에서 이 병원</b><small>병원 위치를 가운데 두고 찾아요 → 병원 이름 누르고 "의료진" 탭</small></a>' +
+      '<a class="dl-a" href="https://m.search.naver.com/search.naver?query=' + encodeURIComponent(q.trim()) + '" target="_blank" rel="noopener"><b>🔎 네이버 검색</b><small>' + esc(q.trim()) + '</small></a>' +
+      '</div><button class="btn ghost dl-save" id="dl-save">' + (m.u ? '📎 저장한 페이지 바꾸기·지우기' : '📎 맞는 페이지를 찾았으면 주소 저장하기') + '</button>' +
+      '<div class="st-note">네이버 지도·검색에서 맞는 병원 페이지를 찾았다면 공유 → 링크 복사 후 위 버튼에 붙여 넣으세요. 다음부터 그 페이지로 바로 가요 (이 휴대폰에만 저장).</div>';
+  }
+  function bindDoctorLinks(h) {
+    var b = $('#dl-save'); if (!b) return;
+    b.addEventListener('click', function () {
+      var all = memos(), m = all[h.id] || { t: [], x: '' };
+      var v = prompt('의료진 소개 페이지 주소를 붙여 넣어 주세요.\n(네이버 지도·병원 누리집에서 공유 → 링크 복사)\n비우고 확인하면 저장한 주소를 지워요.', m.u || '');
+      if (v === null) return;
+      v = v.trim();
+      var found = /(https?:\/\/[^\s]+)/.exec(v); // "[네이버 지도] 병원이름 https://naver.me/xxxx" 처럼 와도 주소만 꺼냄
+      if (v && !found) { toast('https:// 로 시작하는 주소를 붙여 넣어 주세요'); return; }
+      if (found) m.u = found[1]; else delete m.u;
+      m.at = new Date().toISOString().slice(0, 10);
+      if ((m.t || []).length || m.x || m.u) all[h.id] = m; else delete all[h.id];
+      save('hmemo', all); toast(found ? '저장했어요. 다음부터 바로 연결돼요' : '저장한 주소를 지웠어요');
+      var box = document.querySelector('.staff'); if (box) box.outerHTML = staffBlock(h);
+      bindDoctorLinks(h);
+    });
   }
   function memoBlock(h) {
     var m = memoOf(h.id) || { t: [], x: '' };
@@ -648,7 +686,8 @@
     var box = document.querySelector('.memo-box'); if (!box) return;
     var put = function (quiet) {
       var all = memos(), t = $$('.memo-box [data-mt].on').map(function (b) { return +b.dataset.mt; }), x = ($('#memo-x').value || '').trim();
-      if (t.length || x) all[h.id] = { t: t, x: x, at: new Date().toISOString().slice(0, 10) }; else delete all[h.id];
+      var keepU = all[h.id] && all[h.id].u;
+      if (t.length || x || keepU) all[h.id] = { t: t, x: x, u: keepU || undefined, at: new Date().toISOString().slice(0, 10) }; else delete all[h.id];
       save('hmemo', all); if (!quiet) toast(t.length || x ? '내 메모를 저장했어요' : '메모를 지웠어요');
       var li = document.querySelector('.item[data-id="' + h.id + '"] .memo-line'), item = document.querySelector('#region-list .item[data-id="' + h.id + '"]');
       if (li) li.outerHTML = memoLine(h.id); else if (item) { var qa = item.querySelector('.qa'); if (qa) qa.insertAdjacentHTML('beforebegin', memoLine(h.id)); }
@@ -695,7 +734,7 @@
           '<a class="btn" href="' + kakao + '">카카오맵 길찾기</a>' +
           '<a class="btn ghost" href="' + naver + '">네이버지도</a>' +
           '<button class="btn ghost" id="fav-btn">' + (isFav ? '★ 즐겨찾기 해제' : '☆ 즐겨찾기') + '</button>' +
-          (h.url ? '<a class="btn ghost wide" href="' + esc(/^https?:/.test(h.url) ? h.url : 'http://' + h.url) + '">병원 홈페이지</a>' : '') +
+
           (hasPos ? '<button class="btn ghost wide" id="near-pharm-btn">℞ 이 병원 근처 약국</button>' : '') +
           '<button class="btn ghost wide" id="share-btn">📤 카톡으로 이 병원 보내기</button>' +
         '</div>' +
@@ -714,6 +753,7 @@
       if ($('#after-pharm')) afterPharm(h, $('#after-pharm'));
       holWeek(h);
       bindMemo(h);
+      bindDoctorLinks(h);
       $('#share-btn').addEventListener('click', function () {
         var tk = d.hours ? d.hours[todayKey] : null;
         KC.shareText(h.name,
