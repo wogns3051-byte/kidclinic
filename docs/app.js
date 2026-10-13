@@ -228,9 +228,15 @@
     else if (h.type) t.push('<span class="tag">' + esc(h.type) + '</span>');
     return t.join('');
   }
+  function avatar(h) {
+    if (h.moonlight) return '<span class="av moon" aria-hidden="true">🌙</span>';
+    if (h.general) return '<span class="av gen" aria-hidden="true">🩺</span>';
+    if (/병원/.test(h.type || '')) return '<span class="av hosp" aria-hidden="true">🏥</span>';
+    return '<span class="av peds" aria-hidden="true">🧸</span>';
+  }
   function card(h) {
     return '<li class="item" data-id="' + esc(h.id) + '">' +
-      '<div class="name">' + esc(h.name) + (favs.indexOf(h.id) >= 0 ? ' <span style="color:#e0a400">★</span>' : '') +
+      '<div class="name">' + avatar(h) + '<span class="nm">' + esc(h.name) + '</span>' + (favs.indexOf(h.id) >= 0 ? ' <span style="color:#e0a400">★</span>' : '') +
       (h.distance != null ? '<span class="dist">' + (h.distance < 1 ? Math.round(h.distance * 1000) + 'm' : h.distance.toFixed(1) + 'km') + '</span>' : '') + '</div>' +
       '<div class="addr">' + esc(h.addr) + '</div>' +
       (h.when ? '<div class="when' + (h.when.soon ? ' soon' : '') + '">' + whenText(h.when) + '</div>' : '') +
@@ -553,7 +559,7 @@
       phShown = out.slice(0, 100);
       cnt.textContent = '총 ' + out.length + '곳' + (phMode === 'hosp' && phHosp ? ' · ' + phHosp.name + ' 기준' : '');
       list.innerHTML = phShown.length ? phShown.map(function (v, i) {
-        return '<li class="item pitem" data-pi="' + i + '"><div class="name">' + esc(v.p.n) +
+        return '<li class="item pitem" data-pi="' + i + '"><div class="name"><span class="av ph" aria-hidden="true">💊</span><span class="nm">' + esc(v.p.n) + '</span>' +
           '<span class="dist">' + (v.distance < 1 ? Math.round(v.distance * 1000) + 'm' : v.distance.toFixed(1) + 'km') + '</span></div>' +
           '<div class="addr">' + esc(v.p.a) + '</div><div class="meta">' + pharmTags(v) + '</div></li>';
       }).join('') : '<li class="empty"><b>조건에 맞는 약국이 없어요</b>반경을 넓히거나 필터를 줄여 보세요.</li>';

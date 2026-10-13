@@ -440,3 +440,196 @@ html.big .brand { font-size: 20px; }
 .ob-btns { display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; }
 .ob-link { font-size: 12px; color: var(--muted); }
 @media (prefers-color-scheme: dark) { .ob-priv { background: #1b2530; color: #a9bccf !important; } .ob { background: rgba(0,0,0,.65); } }
+
+/* ═════════ 디자인 v2 "새벽 하늘" — 밤에 한 손으로 보는 엄마·할머니를 위한 화면 ═════════ */
+:root {
+  --bg: #F2F6FA; --card: #FFFFFF; --ink: #23324A; --muted: #66758C; --line: #E0E7EF;
+  --brand: #0F8475; --brand-soft: #DCF2EC; --warm: #E5793D; --warm-soft: #FFF0E4;
+  --moon: #5A5DCB; --moon-soft: #ECECFD; --red: #E5484D; --butter: #FFD166; --night: #1E2B4D;
+  --radius: 18px; --nav-h: 66px;
+  --display: "Jua", -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+}
+body { font-size: 15.5px; letter-spacing: -0.2px; }
+
+/* 헤더: 밤하늘 */
+.top { position: sticky; background: var(--night); overflow: hidden; padding-top: calc(14px + env(safe-area-inset-top)); padding-bottom: 14px; align-items: center; }
+.top .sky { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.top .brand, .top .top-r { position: relative; }
+.brand { font-family: var(--display); font-weight: 400; font-size: 23px; letter-spacing: 0; display: flex; align-items: center; gap: 8px; }
+.logo-img { width: 30px; height: 30px; border-radius: 9px; vertical-align: 0; margin: 0; box-shadow: 0 0 0 2px rgba(255,255,255,.15); }
+.top .sub { color: rgba(255,255,255,.7); font-size: 11.5px; }
+.top-r { margin-right: 34px; }
+.fontbtn { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.3); }
+.public-note { background: var(--card); color: var(--muted); font-weight: 500; font-size: 12px; padding: 7px 16px; border-bottom: 1px solid var(--line); }
+.public-note a { color: var(--red); font-weight: 700; text-decoration: none; }
+
+/* 아이가 아파요 */
+.triage-btn { gap: 12px; padding: 14px 14px 14px 12px; border-radius: 20px; background: #FFF1F0; color: var(--ink); border: 1.5px solid #F7C9C6; box-shadow: none; font-size: 14px; }
+.triage-btn .tb-ic { flex: none; width: 46px; height: 46px; border-radius: 50%; background: var(--red); display: grid; place-items: center; font-size: 24px; }
+.triage-btn .tb-t { display: grid; gap: 2px; color: var(--muted); font-size: 13px; line-height: 1.35; }
+.triage-btn .tb-t b { font-family: var(--display); font-weight: 400; font-size: 19px; color: #B4232A; letter-spacing: 0; }
+.triage-btn .tb-ar { margin-left: auto; font-size: 26px; color: #E08A86; }
+
+/* 입력·칩·버튼 */
+select, input[type=search] { height: 48px; border-radius: 14px; border-color: var(--line); font-size: 15px; }
+.chip { height: 36px; padding: 0 14px; border-radius: 18px; font-size: 14px; }
+.chip.on { background: var(--ink); border-color: var(--ink); }
+.btn { height: 46px; border-radius: 14px; }
+.btn.ghost { border-color: var(--line); }
+.seg { background: #E6ECF3; border-radius: 14px; }
+.seg button { border-radius: 11px; height: 38px; }
+
+/* 병원 카드 */
+.list { gap: 10px; padding: 6px 12px 14px; }
+.item { border-radius: var(--radius); padding: 15px 16px; gap: 5px; border-color: var(--line); }
+.item .name { font-size: 16.5px; letter-spacing: -0.4px; }
+.dist { color: var(--ink); font-weight: 700; font-size: 13px; background: var(--bg); border-radius: 10px; padding: 2px 8px; }
+.when { font-size: 13px; }
+.tag { border-radius: 8px; padding: 3px 8px; font-size: 12px; background: #EEF2F7; }
+.tag.open { background: var(--brand-soft); color: var(--brand); }
+.tag.closed { background: #F1F3F6; color: #8A94A4; }
+.tag.moon { background: var(--moon-soft); color: var(--moon); }
+.tag.night { background: #EEF0FF; color: #4B4FB8; }
+.tag.weekend { background: var(--warm-soft); color: #B85A22; }
+.count { font-size: 13px; padding: 12px 18px 2px; }
+.hint { font-size: 12.5px; }
+
+/* 하단 메뉴: 선 아이콘 + 큰 터치 영역 */
+.bottom { border-top: 1px solid var(--line); box-shadow: 0 -4px 16px rgba(35,50,74,.05); }
+.bottom button, .bottom .nav-er { gap: 4px; font-size: 11px; color: #7C889B; }
+.bottom svg.ic { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; padding: 3px 10px; box-sizing: content-box; border-radius: 14px; transition: background .15s; }
+.bottom svg.ic .f { fill: currentColor; stroke: none; }
+.bottom button.on { color: var(--brand); }
+.bottom button.on svg.ic { background: var(--brand-soft); }
+.bottom .nav-er { color: var(--red); }
+.bottom .nav-er svg.ic { stroke: none; fill: currentColor; }
+
+/* 상세 시트 */
+.sheet { border-radius: 26px 26px 0 0; }
+.sheet h2 { font-size: 21px; letter-spacing: -0.5px; }
+.tg-res-t, .ob-s h3 { font-family: var(--display); font-weight: 400; letter-spacing: 0; }
+.tg-res-t { font-size: 23px; }
+.ob-s h3 { font-size: 23px; }
+.ob-card { border-radius: 26px; }
+
+/* 우리아이 */
+.ec { border-radius: 20px; }
+.ec-name { font-family: var(--display); font-weight: 400; font-size: 26px; letter-spacing: 0; }
+.med-btn.alt { background: #4F6FB0; }
+
+/* 다크 모드 */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0F1424; --card: #18203A; --ink: #E7ECF5; --muted: #98A3B8; --line: #283252;
+    --brand: #4CC3AE; --brand-soft: #173A3A; --warm: #F2A06B; --warm-soft: #3A2A22;
+    --moon: #A9ACF5; --moon-soft: #25284A; --red: #FF6B6B; --night: #141B30;
+  }
+  .top { background: var(--night); }
+  .public-note { background: var(--card); color: var(--muted); }
+  .triage-btn { background: #2A1B24; border-color: #4A2A33; color: var(--ink); }
+  .triage-btn .tb-t b { color: #FF9A95; }
+  .triage-btn .tb-ic { background: #D9434B; }
+  .chip.on { background: var(--ink); border-color: var(--ink); color: #0F1424; }
+  .seg { background: #1F2846; }
+  .seg button.on { background: #2E3A60; }
+  .tag { background: #222B48; }
+  .tag.closed { background: #20263D; color: #8792A8; }
+  .tag.night { background: #262A52; color: #B7BAF7; }
+  .dist { background: #222B48; }
+  .bottom { box-shadow: none; }
+  .bottom button, .bottom .nav-er { color: #8792A8; }
+  .bottom button.on { color: var(--brand); }
+  .bottom .nav-er { color: var(--red); }
+  .med-btn.alt { background: #7F9BD6; }
+}
+@media (prefers-color-scheme: dark) {
+  .tg-res.tg-r { background: #C23A40; } .tg-res.tg-o { background: #B4532A; }
+  .tg-res.tg-y { background: #17695E; } .tg-res.tg-g { background: #3E5568; }
+}
+
+/* ═════════ 디자인 v3 "몽글몽글" — 더 귀엽게 ═════════ */
+:root {
+  --bg: #F4F5FF; --card: #FFFFFF; --ink: #2B3150; --muted: #737D9C; --line: #E3E6F6;
+  --brand: #12897A; --brand-soft: #DCF5EF; --pink: #FF8FAB; --pink-soft: #FFE9F0;
+  --lilac: #8E8CF0; --lilac-soft: #EEEDFF; --butter: #FFD166; --butter-soft: #FFF6DC;
+  --night: #2E3878; --radius: 22px;
+}
+.top { background: var(--night); padding-bottom: 26px; }
+.top .sky { height: 100%; }
+.top .sky .cloud { fill: var(--bg); }
+.public-note { border-bottom: 0; background: transparent; margin-top: -6px; padding-top: 0; position: relative; }
+.brand { font-size: 24px; }
+.logo-img { border-radius: 50%; }
+.top-r { margin-right: 74px; }
+
+/* 소제목도 동글동글 */
+.on-h, .bn-h, .sub-h, .sc-head, .tg-gh { font-family: var(--display); font-weight: 400; letter-spacing: 0; }
+.on-h, .bn-h { font-size: 18px; }
+.sub-h { font-size: 16px; }
+
+/* 아이가 아파요 */
+.triage-btn { background: var(--pink-soft); border: 2px solid #FFC7D6; border-radius: 26px; }
+.triage-btn .tb-ic { background: #FFFFFF; box-shadow: inset 0 0 0 2px #FFC7D6; font-size: 26px; }
+.triage-btn .tb-t b { color: #D6336C; font-size: 20px; }
+.triage-btn .tb-ar { color: #F08CA8; }
+.hol { background: var(--butter-soft); color: #8A6410; border-radius: 18px; }
+
+/* 동글동글한 칩·버튼·입력 */
+.chip { border-radius: 999px; border-width: 1.5px; }
+.chip.on { background: var(--brand); border-color: var(--brand); color: #fff; }
+.btn { border-radius: 16px; }
+select, input[type=search] { border-radius: 16px; border-width: 1.5px; }
+.seg { border-radius: 999px; background: #E8EAFA; }
+.seg button { border-radius: 999px; }
+
+/* 병원 카드 + 동그란 아이콘 */
+.item { border: 1.5px solid var(--line); }
+.item .name { display: flex; align-items: center; gap: 8px; }
+.av { flex: none; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; font-size: 17px; line-height: 1; }
+.av.peds { background: var(--pink-soft); } .av.hosp { background: #E6F0FF; } .av.moon { background: var(--lilac-soft); }
+.av.gen { background: var(--brand-soft); } .av.ph { background: var(--butter-soft); }
+.item .addr, .item .when, .item .meta { padding-left: 40px; }
+.tag { border-radius: 999px; padding: 3px 9px; }
+.tag.moon { background: var(--lilac-soft); color: #5F5CC9; }
+.tag.sd { background: var(--pink-soft); color: #C2255C; }
+.dist { border-radius: 999px; }
+
+/* 빈 화면에 잠자는 아기 */
+.empty::before { content: ""; display: block; width: 76px; height: 76px; margin: 0 auto 10px; background: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2080%2080%22%3E%3Ccircle%20cx%3D%2240%22%20cy%3D%2244%22%20r%3D%2228%22%20fill%3D%22%23FFF0E3%22/%3E%3Cpath%20d%3D%22M30%2018c4-8%2016-9%2021-3%203%203%202%207-1%208-4-5-10-6-14-2-2%202-4%202-6-3z%22%20fill%3D%22%23FFD166%22/%3E%3Cpath%20d%3D%22M28%2044q4%204%208%200M44%2044q4%204%208%200%22%20stroke%3D%22%235B6380%22%20stroke-width%3D%222.4%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22/%3E%3Ccircle%20cx%3D%2225%22%20cy%3D%2252%22%20r%3D%224%22%20fill%3D%22%23FFB3C7%22%20opacity%3D%22.7%22/%3E%3Ccircle%20cx%3D%2255%22%20cy%3D%2252%22%20r%3D%224%22%20fill%3D%22%23FFB3C7%22%20opacity%3D%22.7%22/%3E%3Cpath%20d%3D%22M36%2056q4%203%208%200%22%20stroke%3D%22%235B6380%22%20stroke-width%3D%222.2%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22/%3E%3Ctext%20x%3D%2258%22%20y%3D%2224%22%20font-size%3D%2211%22%20fill%3D%22%238E8CF0%22%20font-family%3D%22sans-serif%22%3Ez%3C/text%3E%3Ctext%20x%3D%2266%22%20y%3D%2215%22%20font-size%3D%228%22%20fill%3D%22%238E8CF0%22%20opacity%3D%22.7%22%20font-family%3D%22sans-serif%22%3Ez%3C/text%3E%3C/svg%3E") center/contain no-repeat; }
+.kid-empty::before { content: ""; display: block; width: 64px; height: 64px; margin: 0 auto; background: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2080%2080%22%3E%3Ccircle%20cx%3D%2240%22%20cy%3D%2244%22%20r%3D%2228%22%20fill%3D%22%23FFF0E3%22/%3E%3Cpath%20d%3D%22M30%2018c4-8%2016-9%2021-3%203%203%202%207-1%208-4-5-10-6-14-2-2%202-4%202-6-3z%22%20fill%3D%22%23FFD166%22/%3E%3Cpath%20d%3D%22M28%2044q4%204%208%200M44%2044q4%204%208%200%22%20stroke%3D%22%235B6380%22%20stroke-width%3D%222.4%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22/%3E%3Ccircle%20cx%3D%2225%22%20cy%3D%2252%22%20r%3D%224%22%20fill%3D%22%23FFB3C7%22%20opacity%3D%22.7%22/%3E%3Ccircle%20cx%3D%2255%22%20cy%3D%2252%22%20r%3D%224%22%20fill%3D%22%23FFB3C7%22%20opacity%3D%22.7%22/%3E%3Cpath%20d%3D%22M36%2056q4%203%208%200%22%20stroke%3D%22%235B6380%22%20stroke-width%3D%222.2%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22/%3E%3Ctext%20x%3D%2258%22%20y%3D%2224%22%20font-size%3D%2211%22%20fill%3D%22%238E8CF0%22%20font-family%3D%22sans-serif%22%3Ez%3C/text%3E%3Ctext%20x%3D%2266%22%20y%3D%2215%22%20font-size%3D%228%22%20fill%3D%22%238E8CF0%22%20opacity%3D%22.7%22%20font-family%3D%22sans-serif%22%3Ez%3C/text%3E%3C/svg%3E") center/contain no-repeat; }
+.kid-empty { text-align: center; border-radius: 22px; border-style: dashed; border-width: 2px; }
+
+/* 하단 메뉴 */
+.bottom button.on svg.ic { background: var(--brand-soft); border-radius: 999px; }
+
+/* 우리아이 */
+.ec { border-radius: 24px; border-color: #FF8FAB; }
+.ec-h { background: linear-gradient(0deg, #FF7A9C, #FF7A9C); }
+.med-st, .fl, .tc-box, .homecare, .cal-box, .med-box, .card-form, .tl { border-radius: 20px; }
+.sc { border-radius: 18px; }
+.bk-btn { border-radius: 999px; }
+
+/* 다크 모드 */
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #12152B; --card: #1C2040; --ink: #E8EAF7; --muted: #9AA0C0; --line: #2C3160;
+    --brand: #4CC9B4; --brand-soft: #173B3B; --pink: #FF9DB8; --pink-soft: #3A1E2E; --lilac: #ABA9FF; --lilac-soft: #2A2A55;
+    --butter-soft: #3A3218; --night: #1A1F45; }
+  .triage-btn { background: var(--pink-soft); border-color: #5A2A40; }
+  .triage-btn .tb-ic { background: #2A1626; box-shadow: inset 0 0 0 2px #5A2A40; }
+  .triage-btn .tb-t b { color: #FF9DB8; }
+  .chip.on { background: var(--brand); border-color: var(--brand); color: #0F1424; }
+  .av.hosp { background: #1E2A4A; }
+  .hol { background: var(--butter-soft); color: #F0D080; }
+  .tag.moon { color: #C3C1FF; } .tag.sd { color: #FFB3C9; }
+  .seg { background: #23284F; }
+}
+
+/* 헤더 정리 (v3.1) */
+.top { display: flex; align-items: center; gap: 10px; padding: calc(12px + env(safe-area-inset-top)) 16px 30px; }
+.top .sky { position: absolute; inset: 0; width: 100%; height: 100%; }
+.top .moon { position: absolute; right: 12px; top: calc(6px + env(safe-area-inset-top)); width: 54px; height: 47px; pointer-events: none; }
+.brand-wrap { position: relative; display: grid; gap: 1px; min-width: 0; }
+.brand { white-space: nowrap; }
+.brand-wrap .sub { color: rgba(255,255,255,.72); font-size: 11.5px; padding-left: 38px; white-space: nowrap; }
+.top .fontbtn { position: relative; margin-left: auto; margin-right: 58px; }
+.public-note { margin-top: 0; padding: 2px 16px 6px; }
