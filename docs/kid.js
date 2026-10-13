@@ -41,6 +41,7 @@
   function kids() { return load('kids', { list: [], cur: '' }); }
   function saveKids(k) { save('kids', k); }
   function curKid() { var k = kids(); return k.list.filter(function (x) { return x.id === k.cur; })[0] || k.list[0] || null; }
+  K.curKid = curKid;
   function ageText(birth) {
     if (!birth) return '';
     var b = new Date(birth + 'T00:00:00'), n = new Date();
@@ -82,6 +83,7 @@
     acet: { name: '아세트아미노펜 계열', ex: '타이레놀·챔프 등', gapH: 4, maxDay: 5 },
     ibu: { name: '이부프로펜·덱시부프로펜 계열', ex: '부루펜·맥시부펜 등', gapH: 6, maxDay: 4 }
   };
+  var SYMS = ['구토', '설사', '기침', '콧물', '발진', '처짐', '잘 못 먹음', '잘 먹음', '소변 줄어듦', '경련'];
   function logs(id) { return load('kidlog:' + id, []); }
   function saveLogs(id, l) { save('kidlog:' + id, l.slice(-300)); }
   function pickedTime() {
@@ -138,13 +140,15 @@
         '<button class="btn med-btn" data-med="acet">💊 아세트아미노펜 계열 먹였어요<small>' + DRUGS.acet.ex + '</small></button>' +
         '<button class="btn med-btn alt" data-med="ibu">💊 이부프로펜·덱시부프로펜 계열 먹였어요<small>' + DRUGS.ibu.ex + '</small></button>' +
         '<div class="temp-row"><input type="number" id="temp-in" inputmode="decimal" step="0.1" min="34" max="43" placeholder="체온 예: 38.5"><button class="btn ghost" id="temp-btn">🌡 체온 기록</button></div>' +
+        '<div class="sym"><div class="sym-h">증상 메모 (눌러서 고르고 저장)</div><div class="sym-chips">' + SYMS.map(function (x) { return '<button class="chip" data-sym="' + x + '">' + x + '</button>'; }).join('') + '</div>' +
+        '<div class="temp-row"><input type="text" id="sym-in" maxlength="60" placeholder="직접 적기 (예: 오른쪽 귀 아프다고 함)"><button class="btn ghost" id="sym-btn">📝 메모 저장</button></div></div>' +
       '</div>' +
       drugStatus(l, 'acet') + drugStatus(l, 'ibu') +
       '<div class="note pad">용량과 간격은 약 설명서와 약사 안내를 따라 주세요. 두 계열을 번갈아 먹이는 것은 의사·약사와 상의하세요.</div>' +
       '<h3 class="bn-h">최근 3일 기록</h3>' +
       (recent.length ? '<ul class="tl">' + recent.map(function (x) {
-        var label = x.type === 'temp' ? '🌡 ' + x.v.toFixed(1) + '℃' : '💊 ' + DRUGS[x.type].name;
-        return '<li class="' + (x.type === 'temp' && x.v >= 38 ? 'hot' : '') + '"><span class="tl-t">' + dayLabel(x.t) + ' ' + hm(x.t) + '</span><span class="tl-v">' + label + '</span><button class="tl-x" data-del="' + x.t + '" aria-label="지우기">✕</button></li>';
+        var label = x.type === 'temp' ? '🌡 ' + x.v.toFixed(1) + '℃' : x.type === 'note' ? '📝 ' + esc(x.v) : '💊 ' + DRUGS[x.type].name;
+        return '<li class="' + (x.type === 'temp' && x.v >= 38 ? 'hot' : x.type === 'note' && /경련/.test(x.v) ? 'hot' : '') + '"><span class="tl-t">' + dayLabel(x.t) + ' ' + hm(x.t) + '</span><span class="tl-v">' + label + '</span><button class="tl-x" data-del="' + x.t + '" aria-label="지우기">✕</button></li>';
       }).join('') + '</ul>' : '<div class="kid-empty small">아직 기록이 없어요</div>') +
       '<div class="actions pad"><button class="btn ghost" id="med-share">📤 진료 때 보여줄 기록 공유</button><button class="btn ghost" id="med-clear">기록 모두 지우기</button></div>' + privNote('kid');
 
@@ -163,6 +167,15 @@
       if (!(v >= 34 && v <= 43)) { toast('체온을 34~43 사이 숫자로 적어 주세요'); return; }
       l.push({ t: pickedTime(), type: 'temp', v: Math.round(v * 10) / 10 }); saveLogs(kid.id, l); renderMed();
     });
+    $$('#kid-med [data-sym]').forEach(function (b) { b.addEventListener('click', function () { b.classList.toggle('on'); }); });
+    $('#sym-btn').addEventListener('click', function () {
+      var picked = $$('#kid-med [data-sym].on').map(function (b) { return b.dataset.sym; });
+      var txt = ($('#sym-in').value || '').trim();
+      var v = picked.concat(txt ? [txt] : []).join(', ');
+      if (!v) { toast('증상을 고르거나 적어 주세요'); return; }
+      l.push({ t: pickedTime(), type: 'note', v: v.slice(0, 100) }); saveLogs(kid.id, l); renderMed();
+      if (/경련/.test(v)) toast('경련이 있었다면 멈췄어도 진료가 필요해요. "어디로 가야 해요?"를 확인하세요');
+    });
     $$('#kid-med [data-del]').forEach(function (b) {
       b.addEventListener('click', function () {
         var t = +b.dataset.del;
@@ -175,7 +188,7 @@
     $('#med-share').addEventListener('click', function () {
       if (!confirmShare('해열제·체온 기록')) return;
       var lines = recent.slice().reverse().map(function (x) {
-        return dayLabel(x.t) + ' ' + hm(x.t) + '  ' + (x.type === 'temp' ? '체온 ' + x.v.toFixed(1) + '℃' : DRUGS[x.type].name + ' 복용');
+        return dayLabel(x.t) + ' ' + hm(x.t) + '  ' + (x.type === 'temp' ? '체온 ' + x.v.toFixed(1) + '℃' : x.type === 'note' ? '메모: ' + x.v : DRUGS[x.type].name + ' 복용');
       });
       shareText(kid.name + ' 해열제·체온 기록', '[' + kid.name + (kid.birth ? ' · ' + ageText(kid.birth) : '') + ' 해열제·체온 기록]\n' + (lines.join('\n') || '기록 없음') + '\n\n- 아이아플때 앱');
     });
@@ -300,9 +313,19 @@
   }
   function ymd(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
   function kdate(d) { return d.getFullYear() + '.' + (d.getMonth() + 1) + '.' + d.getDate(); }
+  // 앞 접종 날짜에 따라 정해지는 일정: [앞 일정, 시작(뒤로), 끝(뒤로), 바뀐 설명]
+  var DEPS = {
+    hepa2: ['hepa1', 'm6', 'm12', 'A형간염 1차를 맞은 날로부터 6~12개월 뒤'],
+    je3: ['je12', 'm11', 'm13', '일본뇌염 2차 접종 약 12개월 뒤 (불활성화 백신 기준)']
+  };
+  function doneDate(v) { return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null; }
   function schedFor(kid) {
+    var dn = done(kid);
     var list = SCHED.map(function (x) {
-      return { id: x.id, c: x.c, n: x.n, note: x.note || '', s: addSpan(kid.birth, x.s), e: addSpan(kid.birth, x.e) };
+      var it = { id: x.id, c: x.c, n: x.n, note: x.note || '', s: addSpan(kid.birth, x.s), e: addSpan(kid.birth, x.e) };
+      var dep = DEPS[x.id], base = dep && doneDate(dn[dep[0]]);
+      if (base) { it.s = addSpan(base, dep[1]); it.e = addSpan(base, dep[2]); it.note = dep[3] + ' (앞 접종 ' + base.replace(/-/g, '.') + ' 기준)'; }
+      return it;
     });
     // 독감: 생후 6개월 ~ 만 13세, 매년 10월 (처음 맞는 해는 4주 간격 2회)
     var from = addSpan(kid.birth, 'm6'), to = addSpan(kid.birth, 'y13'), y = from.getFullYear(), first = true;
@@ -310,8 +333,13 @@
       var s = new Date(y, 9, 1), e = new Date(y, 11, 31);
       if (e < from || s > to) continue;
       if (s < from) s = from;
-      list.push({ id: 'flu' + y, c: 'flu', n: y + '년 어린이 독감 접종', s: s, e: e,
+      list.push({ id: 'flu' + y, c: 'flu', n: y + '년 어린이 독감 접종' + (first ? ' (1차)' : ''), s: s, e: e,
         note: first ? '처음 맞는 해에는 4주 간격으로 2회 맞아요. 시작 날짜는 해마다 공지돼요' : '매년 1회. 시작 날짜는 해마다 공지돼요' });
+      var fd = first && doneDate(dn['flu' + y]);
+      if (fd) {
+        list.push({ id: 'flu' + y + 'b', c: 'flu', n: y + '년 어린이 독감 접종 (2차)', s: addSpan(fd, 'd28'), e: addSpan(fd, 'd56'),
+          note: '1차(' + fd.replace(/-/g, '.') + ') 4주 뒤에 맞아요' });
+      }
       first = false;
     }
     return list.sort(function (a, b) { return a.s - b.s; });
@@ -349,10 +377,11 @@
       else later.push(x);
     });
     var item = function (x, cls) {
-      var C = CAT[x.c], isDone = !!dn[x.id];
+      var C = CAT[x.c], isDone = !!dn[x.id], dd = doneDate(dn[x.id]);
       return '<li class="sc ' + cls + (isDone ? ' done' : '') + '">' +
         '<label class="sc-chk"><input type="checkbox" data-done="' + x.id + '"' + (isDone ? ' checked' : '') + '><span></span></label>' +
         '<div class="sc-body"><div class="sc-n">' + C.icon + ' ' + esc(x.n) + '</div>' +
+        (dd ? '<div class="sc-done">✓ ' + dd.replace(/-/g, '.') + ' 완료 <a href="#" data-redate="' + x.id + '">날짜 고치기</a></div>' : '') +
         '<div class="sc-d">' + kdate(x.s) + ' ~ ' + kdate(x.e) + (cls === 'now' ? ' <b>· 지금 할 때</b>' : cls === 'next' ? ' · ' + Math.ceil((x.s - today) / 86400000) + '일 뒤 시작' : cls === 'past' && !isDone ? ' <em>· 기간 지남 · 맞았다면 체크</em>' : '') + '</div>' +
         (x.note ? '<div class="sc-note">' + esc(x.note) + '</div>' : '') +
         '<div class="sc-links"><a href="' + C.link + '" target="_blank" rel="noopener">' + C.linkName + ' ↗</a>' +
@@ -371,11 +400,37 @@
       sec('지금 할 때', now, 'now') + sec('곧 시작 (60일 안)', next, 'next') +
       (later.length ? (showAllSched ? sec('나중 일정', later, 'later') : '<button class="btn ghost more-sc" id="more-sc">나중 일정 ' + later.length + '개 더 보기</button>') : '') +
       (past.length ? (showAllSched ? sec('지난 일정·완료', past.slice().reverse(), 'past') : '') : '') +
-      '<div class="note pad">체크(✓)는 맞았거나 받은 일정을 표시하는 용도예요. 실제 접종 기록은 <a href="' + VAC + '" target="_blank" rel="noopener">예방접종도우미</a>에서 확인하고, 그곳에서도 접종 알림을 받을 수 있어요.<br>기준: 질병관리청 표준예방접종일정(2026), 국민건강보험공단 영유아 검진 시기 (' + SCHED_CHECKED + ' 확인). 아이 상태에 따라 일정이 달라질 수 있으니 소아과와 상의하세요.</div>' +
+      '<div class="note pad">체크(✓)할 때 맞은 날짜를 넣으면 A형간염 2차·일본뇌염 3차·첫해 독감 2차를 그 날짜 기준으로 다시 계산해요.<br>체크(✓)는 맞았거나 받은 일정을 표시하는 용도예요. 실제 접종 기록은 <a href="' + VAC + '" target="_blank" rel="noopener">예방접종도우미</a>에서 확인하고, 그곳에서도 접종 알림을 받을 수 있어요.<br>기준: 질병관리청 표준예방접종일정(2026), 국민건강보험공단 영유아 검진 시기 (' + SCHED_CHECKED + ' 확인). 아이 상태에 따라 일정이 달라질 수 있으니 소아과와 상의하세요.</div>' +
       privNote('kid') + '<div class="priv">🔒 캘린더에 넣으면 일정 제목에 적은 이름이 들어가고, 캘린더가 구글·삼성·애플 계정과 동기화되면 그곳에도 저장돼요. 넣기 전에 이름 대신 별명을 쓸 수 있어요.</div>';
 
+    function askDate(def) {
+      var v = prompt('맞은(받은) 날짜를 적어 주세요. 다음 일정 계산에 써요.\n예: ' + def + '  (모르면 비워 두고 확인)', def);
+      if (v === null) return null;
+      v = v.trim().replace(/[./]/g, '-').replace(/-(\d)(?=-|$)/g, '-0$1');
+      if (!v) return 'x';
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(v) || isNaN(Date.parse(v)) || new Date(v + 'T00:00:00') > new Date()) { toast('날짜를 2026-10-13처럼 적어 주세요 (오늘 이후는 안 돼요)'); return null; }
+      return v;
+    }
     $$('#kid-sched [data-done]').forEach(function (c) {
-      c.addEventListener('change', function () { var d2 = done(kid); if (c.checked) d2[c.dataset.done] = 1; else delete d2[c.dataset.done]; save('kiddone:' + kid.id, d2); renderSched(); });
+      c.addEventListener('change', function () {
+        var d2 = done(kid), id = c.dataset.done;
+        if (c.checked) {
+          var x = all.filter(function (y) { return y.id === id; })[0];
+          var def = ymd(x && x.e < today ? x.e : today);
+          var v = askDate(def);
+          if (v === null) { c.checked = false; return; }
+          d2[id] = v === 'x' ? 1 : v;
+        } else delete d2[id];
+        save('kiddone:' + kid.id, d2); renderSched();
+      });
+    });
+    $$('#kid-sched [data-redate]').forEach(function (a) {
+      a.addEventListener('click', function (e) {
+        e.preventDefault();
+        var d2 = done(kid), v = askDate(doneDate(d2[a.dataset.redate]) || ymd(today));
+        if (v === null) return;
+        d2[a.dataset.redate] = v === 'x' ? 1 : v; save('kiddone:' + kid.id, d2); renderSched();
+      });
     });
     var mb = $('#more-sc'); if (mb) mb.addEventListener('click', function () { showAllSched = true; renderSched(); });
     var ms = $('#missed-btn'); if (ms) ms.addEventListener('click', function () { showAllSched = true; renderSched(); var h = $$('#kid-sched .bn-h'); if (h.length) h[h.length - 1].scrollIntoView({ behavior: 'smooth' }); });
@@ -427,6 +482,50 @@
     toast(items.length + '개 일정 파일을 만들었어요. 열어서 캘린더에 추가하세요');
   }
 
+  // ───── 💾 백업 내보내기·불러오기 ─────
+  // 휴대폰에만 저장하는 대신, 이용자가 직접 파일로 옮길 수 있게 한다. (서버를 거치지 않음)
+  var BK_KEYS = /^(kids|kidlog:.+|kiddone:.+|favs|region|bigFont|kidPane)$/;
+  function backupData() {
+    var data = {};
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (BK_KEYS.test(k)) { try { data[k] = JSON.parse(localStorage.getItem(k)); } catch (e) {} }
+    }
+    return { app: 'aiapulttae', v: 1, at: new Date().toISOString(), data: data };
+  }
+  $('#bk-out').addEventListener('click', function () {
+    var b = backupData(), n = (b.data.kids && b.data.kids.list || []).length;
+    if (!confirm('백업 파일에는 아이 이름·생년월일·알레르기·해열제 기록 같은 개인정보가 들어 있어요.\n파일을 다른 사람과 공유하지 말고, 안전한 곳(내 클라우드, 카톡 나와의 채팅 등)에 보관하세요.\n\n백업 파일을 만들까요?')) return;
+    var name = 'aiapulttae-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+    var blob = new Blob([JSON.stringify(b)], { type: 'application/json' });
+    var file = typeof File === 'function' ? new File([blob], name, { type: 'application/json' }) : null;
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: '아이아플때 백업' }).catch(function () {});
+    } else {
+      var url = URL.createObjectURL(blob), a = document.createElement('a');
+      a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
+    }
+    toast('아이 ' + n + '명의 기록을 백업 파일로 만들었어요');
+  });
+  $('#bk-in').addEventListener('click', function () { $('#bk-file').value = ''; $('#bk-file').click(); });
+  $('#bk-file').addEventListener('change', function () {
+    var f = this.files && this.files[0]; if (!f) return;
+    var r = new FileReader();
+    r.onload = function () {
+      try {
+        var b = JSON.parse(r.result);
+        if (!b || b.app !== 'aiapulttae' || !b.data) throw new Error();
+        var n = (b.data.kids && b.data.kids.list || []).length;
+        if (!confirm((b.at ? b.at.slice(0, 10) + '에 만든 ' : '') + '백업(아이 ' + n + '명)을 불러올까요?\n지금 이 휴대폰에 있는 아이 정보와 기록은 백업 내용으로 바뀌어요.')) return;
+        for (var i = localStorage.length - 1; i >= 0; i--) { var k = localStorage.key(i); if (/^(kids|kidlog:.+|kiddone:.+)$/.test(k)) localStorage.removeItem(k); }
+        Object.keys(b.data).forEach(function (k) { if (BK_KEYS.test(k)) localStorage.setItem(k, JSON.stringify(b.data[k])); });
+        toast('불러왔어요'); setTimeout(function () { location.reload(); }, 600);
+      } catch (e) { toast('아이아플때 백업 파일이 아니에요'); }
+    };
+    r.readAsText(f);
+  });
+
   // ───── 우리아이 탭 안 전환 ─────
   var pane = load('kidPane', 'med');
   function showPane(k) {
@@ -446,6 +545,17 @@
     var on = !document.documentElement.classList.contains('big'); save('bigFont', on); applyFont(on);
     toast(on ? '글씨를 크게 했어요' : '글씨를 보통으로 했어요');
   });
+
+  // ───── 자료가 오래되면 경고 ─────
+  K.getDB().then(function (db) {
+    var u = db.meta.updatedAt; if (!u) return;
+    var days = Math.floor((Date.now() - Date.parse(u)) / 86400000);
+    if (days >= 7) {
+      var el = $('#stale');
+      el.innerHTML = '⚠️ 병원 자료가 ' + days + '일 전(' + u.slice(5, 10).replace('-', '/') + ') 기준이에요. 진료시간이 바뀌었을 수 있으니 꼭 전화로 확인하세요.';
+      el.hidden = false;
+    }
+  }).catch(function () {});
 
   // ───── 연휴 안내 ─────
   K.getDB().then(function (db) {

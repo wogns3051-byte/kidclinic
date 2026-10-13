@@ -271,3 +271,99 @@ html.big .brand { font-size: 20px; }
 .missed { display: block; width: calc(100% - 24px); margin: 8px 12px 0; padding: 11px 12px; border: 1px solid #f1d3bd; border-radius: 12px; background: var(--warm-soft); color: #8a4a1e; font-size: 13.5px; text-align: left; font-family: inherit; }
 .sc-d em { color: var(--warm); font-style: normal; font-weight: 600; }
 .sc.past:not(.done) { opacity: 1; }
+.bk-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.bk-btn { height: 36px; border-radius: 10px; border: 1px dashed var(--line); background: transparent; color: var(--muted); font-size: 13px; font-family: inherit; }
+.sc-done { font-size: 12.5px; color: var(--brand); font-weight: 700; }
+.sc-done a { color: var(--muted); font-weight: 500; margin-left: 4px; }
+.sym { display: grid; gap: 6px; padding-top: 4px; border-top: 1px dashed var(--line); }
+.sym-h { font-size: 12.5px; color: var(--muted); }
+.sym-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.sym-chips .chip { height: 32px; padding: 0 11px; font-size: 13px; }
+.temp-row input[type=text] { height: 44px; border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; background: var(--bg); font-size: 14px; font-family: inherit; color: var(--ink); }
+/* ───── 오래된 자료 경고 ───── */
+.stale { padding: 8px 16px; background: #fff4d6; color: #7a5300; font-size: 12.5px; text-align: center; line-height: 1.45; }
+
+/* ───── 다크 모드 (휴대폰 설정을 따름) ───── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: #121614; --card: #1c2220; --ink: #e8ece9; --muted: #9aa5a0; --line: #2d3532;
+    --brand: #4fa38f; --brand-soft: #1d3530; --warm: #f0a070; --warm-soft: #3a2a1f;
+    --moon: #a9adf0; --moon-soft: #262844; --red: #ef6b5d;
+  }
+  .top { background: #1a3b33; }
+  .public-note { background: #18302a; color: #8fd0bf; }
+  .btn, .chip.on { color: #0e1311; }
+  .btn.ghost { background: var(--card); color: var(--brand); }
+  .ec-h, .quick-119 { color: #fff; }
+  .seg { background: #262d2a; }
+  .seg button.on { background: #36403c; color: var(--ink); }
+  .tag { background: #2a312e; }
+  .tag.closed { background: #2a2626; color: #9a8a8a; }
+  .tag.weekend { color: #f0a070; }
+  .tag.lunch { background: #3a3215; color: #e6c26a; }
+  .tag.er { background: #3a1f1c; }
+  .alert, .er-box { background: #3a1f1c; border-color: #5a2e29; color: #f3c2bc; }
+  .alert a { color: #ff8a7d; }
+  .alert.soft, .bn-notice, .hol, .missed { background: #3a2a1f; border-color: #4f3a2b; color: #f0c39f; }
+  .er-box .beds-btn { background: transparent; color: #ff8a7d; border-color: #5a2e29; }
+  .x { background: #2a312e; }
+  .priv { background: #1b2530; color: #a9bccf; }
+  .priv b { color: #cfe0f0; }
+  .bn-body, .sc-note { color: #c3ccc8; }
+  .med-btn.alt { background: #6f8fbf; }
+  .sc.next { box-shadow: inset 4px 0 0 #c9a033; }
+  .stale { background: #3a3215; color: #e6c26a; }
+  #map { background: #1e2522; }
+  .leaflet-tile-pane { filter: brightness(.75) contrast(1.1) saturate(.8); }
+  .sheet-bg { background: rgba(0,0,0,.6); }
+  .toast { background: rgba(232,236,233,.95); color: #121614; }
+  .fontbtn { border-color: rgba(255,255,255,.35); }
+  input, select, textarea { color: var(--ink); }
+}
+/* ───── 어디로 가야 해요? ───── */
+.triage-btn { display: flex; align-items: center; gap: 6px; width: calc(100% - 24px); margin: 12px 12px 0; padding: 14px; border: 0; border-radius: 14px; background: var(--red); color: #fff; font-size: 15px; text-align: left; font-family: inherit; box-shadow: 0 2px 8px rgba(192,57,43,.25); }
+.triage-btn b { font-weight: 800; }
+.triage-btn span { margin-left: auto; font-size: 22px; line-height: 1; }
+.tg-sub { color: var(--muted); font-size: 13.5px; margin: 4px 0 10px; }
+.tg-119 { display: block; padding: 11px 12px; border-radius: 12px; background: #fdecea; color: var(--red); font-weight: 800; text-decoration: none; text-align: center; }
+.tg-age { margin: 12px 0 4px; display: grid; gap: 6px; }
+.tg-age-h { font-weight: 700; font-size: 14px; }
+.tg-age-v { font-size: 13px; color: var(--brand); }
+.tg-gh { margin: 14px 0 6px; font-weight: 800; font-size: 14px; }
+.tg-gh.tg-r { color: var(--red); } .tg-gh.tg-o { color: #c0662b; } .tg-gh.tg-y { color: var(--muted); }
+.tg-list { display: grid; gap: 6px; }
+.tg-item { display: flex; gap: 10px; align-items: flex-start; text-align: left; padding: 11px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font-size: 14px; line-height: 1.4; font-family: inherit; }
+.tg-box { flex: none; width: 20px; height: 20px; border-radius: 6px; border: 2px solid var(--line); margin-top: 1px; }
+.tg-item.on { border-color: currentColor; }
+.tg-item.tg-r.on { background: #fdecea; color: #8e2318; }
+.tg-item.tg-o.on { background: #fbeadf; color: #8a4a1e; }
+.tg-item.tg-y.on { background: var(--brand-soft); color: var(--brand); }
+.tg-item.on .tg-box { background: currentColor; border-color: currentColor; box-shadow: inset 0 0 0 3px var(--card); }
+.tg-go { width: 100%; height: 50px; margin-top: 14px; font-size: 16px; }
+.tg-res { padding: 16px; border-radius: 16px; color: #fff; margin-top: 4px; }
+.tg-res.tg-r { background: var(--red); } .tg-res.tg-o { background: #d0662b; } .tg-res.tg-y { background: var(--brand); } .tg-res.tg-g { background: #5b7a6e; }
+.tg-res-t { font-size: 20px; font-weight: 800; line-height: 1.3; }
+.tg-res-b { font-size: 14px; margin-top: 6px; line-height: 1.5; opacity: .95; }
+.tg-acts { display: grid; gap: 8px; margin: 12px 0; }
+.tg-acts .btn { display: flex; align-items: center; justify-content: center; text-decoration: none; height: 46px; }
+.tg-acts .btn.big { height: 54px; font-size: 16px; }
+.tg-acts .btn.red { background: var(--red); color: #fff; }
+.tg-chosen { font-size: 13px; color: var(--muted); padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; line-height: 1.6; }
+.tg-chosen b { color: var(--ink); }
+.tg-help { margin-top: 12px; padding: 12px; border-radius: 12px; background: #eef2f6; color: #3d4f63; font-size: 13.5px; display: grid; gap: 8px; line-height: 1.5; }
+.tg-help > b { color: #23384d; font-size: 14px; }
+.tg-help .btn { display: flex; align-items: center; justify-content: center; text-decoration: none; height: 42px; }
+.muted-s { font-size: 12px; color: var(--muted); }
+.tg-again { width: 100%; margin-top: 12px; }
+@media (prefers-color-scheme: dark) {
+  .triage-btn { color: #fff; box-shadow: none; }
+  .tg-119 { background: #3a1f1c; color: #ff8a7d; }
+  .tg-item.tg-r.on { background: #3a1f1c; color: #ff9a8e; }
+  .tg-item.tg-o.on { background: #3a2a1f; color: #f0b080; }
+  .tg-res { color: #fff; }
+  .tg-acts .btn.red { color: #fff; }
+  .tg-help { background: #1b2530; color: #a9bccf; }
+  .tg-help > b { color: #cfe0f0; }
+}
+.temp-row .btn { white-space: nowrap; padding: 0 12px; }

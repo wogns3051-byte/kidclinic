@@ -588,8 +588,10 @@
   // ───── kid.js 에 도구 넘기기 ─────
   var KC = window.KC = { $: $, $$: $$, esc: esc, load: load, save: save, toast: toast, api: api, show: show,
     getDB: getDB, kstNow: kstNow, locate: locate, card: card, loadBenefit: loadBenefit, onShow: {},
+    ER_BEDS_URL: ER_BEDS_URL,
     shareText: function (t, x) { if (navigator.share) navigator.share({ title: t, text: x }).catch(function () {}); else if (navigator.clipboard) navigator.clipboard.writeText(x).then(function () { toast('복사했어요'); }); } };
 
+  getDB().then(function (db) { KC.db = db; }).catch(function () {});
   // ───── 시작 ─────
   api('/regions').then(function (d) {
     regions = d.regions;
