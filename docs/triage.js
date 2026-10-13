@@ -107,6 +107,12 @@
         acts: '<button class="btn big" data-go-tab="benefit" data-go-pane="med">💊 해열제·체온 기록하기</button>' +
               '<button class="btn ghost" data-go-tab="region">내일 갈 소아과 찾기</button>' }
     }[level];
+    var BRING = '<div class="tg-bring"><b>🎒 ' + (level === 'r' ? '구급대를 기다리며 챙길 것' : '챙겨 갈 것') + '</b>' +
+      ['응급 카드 (알레르기·먹는 약)', '해열제·체온 기록', '먹던 약이나 약봉투', '보호자 신분증 (건강보험 확인)', '기저귀·물티슈·여벌 옷', '휴대폰 충전기'].map(function (x) {
+        return '<label><input type="checkbox"> ' + x + '</label>'; }).join('') +
+      '<div class="tg-bring-btns"><button class="btn ghost" data-go-tab="benefit" data-go-pane="card">🪪 응급 카드</button><button class="btn ghost" data-go-tab="benefit" data-go-pane="med">💊 기록 보기</button></div></div>';
+    if (level === 'r' || level === 'o') R.acts += BRING;
+    if (level === 'g' && K.HOMECARE) R.acts += K.HOMECARE.replace('<details class="homecare">', '<details class="homecare" open>');
     var chosen = ITEMS.filter(function (x) { return picked[x.id]; }).map(function (x) { return esc(x.t); });
     $('#sheet-body').innerHTML =
       '<div class="tg-res tg-' + R.cls + '"><div class="tg-res-t">' + R.t + '</div><div class="tg-res-b">' + R.b + '</div></div>' +

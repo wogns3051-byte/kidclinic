@@ -84,6 +84,41 @@
     ibu: { name: '이부프로펜·덱시부프로펜 계열', ex: '부루펜·맥시부펜 등', gapH: 6, maxDay: 4 }
   };
   var SYMS = ['구토', '설사', '기침', '콧물', '발진', '처짐', '잘 못 먹음', '잘 먹음', '소변 줄어듦', '경련'];
+  var HOMECARE = '<details class="homecare"><summary>🏠 열날 때 집에서 할 일</summary><ul>' +
+    '<li>옷은 얇고 편하게 입혀요. 추워서 떨면 억지로 벗기지 말고 얇은 이불을 살짝 덮어 주세요.</li>' +
+    '<li>물이나 모유·분유를 조금씩 자주 먹여요. 소변 횟수를 함께 살펴 주세요.</li>' +
+    '<li>해열제는 열이 있으면서 아이가 힘들어할 때, 설명서의 용량과 간격대로 먹여요.</li>' +
+    '<li>찬물이나 알코올로 몸을 닦지 마세요.</li>' +
+    '<li>체온·해열제·소변을 기록해 두면 진료 때 도움이 돼요.</li>' +
+    '<li>열이 3일 넘게 가거나, 처지고 잘 못 먹거나, 소변이 줄거나, 경련이 있으면 <a href="#" data-open-triage>"어디로 가야 해요?"</a>를 다시 확인하세요.</li>' +
+    '</ul><div class="hc-src">여러 병원의 공개 건강정보에서 공통으로 안내하는 내용이에요. 자세한 내용은 <a href="https://health.kdca.go.kr" target="_blank" rel="noopener">국가건강정보포털(질병관리청)</a>을 참고하세요.</div></details>';
+  K.HOMECARE = HOMECARE;
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('[data-open-triage]');
+    if (a) { e.preventDefault(); if (K.openTriage) K.openTriage(); }
+  });
+  function tempChart(l) {
+    var since = Date.now() - 48 * 3600000;
+    var temps = l.filter(function (x) { return x.type === 'temp' && x.t >= since; }).sort(function (a, b) { return a.t - b.t; });
+    if (temps.length < 2) return '';
+    var meds = l.filter(function (x) { return (x.type === 'acet' || x.type === 'ibu') && x.t >= temps[0].t; });
+    var W = 340, H = 150, L = 30, R = 8, T = 10, B = 26;
+    var t0 = temps[0].t, t1 = Math.max(Date.now(), temps[temps.length - 1].t);
+    var lo = Math.min(36, Math.floor(Math.min.apply(null, temps.map(function (x) { return x.v; })))), hi = Math.max(40, Math.ceil(Math.max.apply(null, temps.map(function (x) { return x.v; }))));
+    var X = function (t) { return L + (W - L - R) * (t - t0) / Math.max(1, t1 - t0); };
+    var Y = function (v) { return T + (H - T - B) * (hi - v) / (hi - lo); };
+    var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="tchart" role="img" aria-label="최근 48시간 체온 그래프">';
+    svg += '<rect x="' + L + '" y="' + Y(hi) + '" width="' + (W - L - R) + '" height="' + (Y(38) - Y(hi)) + '" class="tc-hot"/>';
+    for (var v = lo; v <= hi; v++) svg += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(v) + '" y2="' + Y(v) + '" class="tc-grid"/><text x="' + (L - 4) + '" y="' + (Y(v) + 4) + '" class="tc-ax" text-anchor="end">' + v + '</text>';
+    meds.forEach(function (m) {
+      var x = X(m.t);
+      svg += '<line x1="' + x + '" x2="' + x + '" y1="' + T + '" y2="' + (H - B) + '" class="tc-med ' + m.type + '"/><text x="' + x + '" y="' + (H - B + 12) + '" class="tc-ml ' + m.type + '" text-anchor="middle">💊</text>';
+    });
+    svg += '<polyline class="tc-line" points="' + temps.map(function (x) { return X(x.t).toFixed(1) + ',' + Y(x.v).toFixed(1); }).join(' ') + '"/>';
+    temps.forEach(function (x) { svg += '<circle cx="' + X(x.t).toFixed(1) + '" cy="' + Y(x.v).toFixed(1) + '" r="3.5" class="tc-dot' + (x.v >= 38 ? ' hot' : '') + '"/>'; });
+    svg += '<text x="' + L + '" y="' + (H - 4) + '" class="tc-ax">' + dayLabel(t0) + ' ' + hm(t0) + '</text><text x="' + (W - R) + '" y="' + (H - 4) + '" class="tc-ax" text-anchor="end">지금</text></svg>';
+    return '<div class="tc-box"><div class="tc-h">최근 48시간 체온 <span>💊 = 해열제 먹인 때 · 빨간 영역 = 38℃ 이상</span></div>' + svg + '</div>';
+  }
   function logs(id) { return load('kidlog:' + id, []); }
   function saveLogs(id, l) { save('kidlog:' + id, l.slice(-300)); }
   function pickedTime() {
@@ -110,6 +145,17 @@
       } else html += '<div class="med-next ok">같은 약을 다시 먹일 수 있는 간격(' + D.gapH + '시간)이 지났어요</div>';
     }
     return html + '</div>';
+  }
+  function fluidStatus(l) {
+    var now = Date.now(), day = l.filter(function (x) { return now - x.t < 86400000; });
+    var pee = day.filter(function (x) { return x.type === 'pee'; }), drink = day.filter(function (x) { return x.type === 'drink'; });
+    if (!pee.length && !drink.length) return '';
+    var lastPee = l.filter(function (x) { return x.type === 'pee'; }).sort(function (a, b) { return b.t - a.t; })[0];
+    var hrs = lastPee ? Math.floor((now - lastPee.t) / 3600000) : null;
+    var warn = hrs != null && hrs >= 8;
+    return '<div class="fl' + (warn ? ' warn' : '') + '"><div>최근 24시간 · 💧 소변 ' + pee.length + '회 · 🥤 물·수유 ' + drink.length + '회</div>' +
+      (lastPee ? '<div>마지막 소변 ' + dayLabel(lastPee.t) + ' ' + hm(lastPee.t) + (warn ? ' (<b>' + hrs + '시간 전</b>)' : '') + '</div>' : '') +
+      (warn ? '<div>소변이 오랫동안 없으면 탈수 신호일 수 있어요. <a href="#" data-open-triage>"어디로 가야 해요?"</a>를 확인하세요.</div>' : '') + '</div>';
   }
   function feverAlerts(kid, l) {
     var out = [], m = ageMonths(kid.birth);
@@ -140,14 +186,16 @@
         '<button class="btn med-btn" data-med="acet">💊 아세트아미노펜 계열 먹였어요<small>' + DRUGS.acet.ex + '</small></button>' +
         '<button class="btn med-btn alt" data-med="ibu">💊 이부프로펜·덱시부프로펜 계열 먹였어요<small>' + DRUGS.ibu.ex + '</small></button>' +
         '<div class="temp-row"><input type="number" id="temp-in" inputmode="decimal" step="0.1" min="34" max="43" placeholder="체온 예: 38.5"><button class="btn ghost" id="temp-btn">🌡 체온 기록</button></div>' +
+        '<div class="quick2"><button class="btn ghost" data-quick="pee">💧 소변·기저귀</button><button class="btn ghost" data-quick="drink">🥤 물·수유</button></div>' +
         '<div class="sym"><div class="sym-h">증상 메모 (눌러서 고르고 저장)</div><div class="sym-chips">' + SYMS.map(function (x) { return '<button class="chip" data-sym="' + x + '">' + x + '</button>'; }).join('') + '</div>' +
         '<div class="temp-row"><input type="text" id="sym-in" maxlength="60" placeholder="직접 적기 (예: 오른쪽 귀 아프다고 함)"><button class="btn ghost" id="sym-btn">📝 메모 저장</button></div></div>' +
       '</div>' +
-      drugStatus(l, 'acet') + drugStatus(l, 'ibu') +
+      fluidStatus(l) + tempChart(l) +
+      drugStatus(l, 'acet') + drugStatus(l, 'ibu') + '<div class="pad-x">' + HOMECARE + '</div>' +
       '<div class="note pad">용량과 간격은 약 설명서와 약사 안내를 따라 주세요. 두 계열을 번갈아 먹이는 것은 의사·약사와 상의하세요.</div>' +
       '<h3 class="bn-h">최근 3일 기록</h3>' +
       (recent.length ? '<ul class="tl">' + recent.map(function (x) {
-        var label = x.type === 'temp' ? '🌡 ' + x.v.toFixed(1) + '℃' : x.type === 'note' ? '📝 ' + esc(x.v) : '💊 ' + DRUGS[x.type].name;
+        var label = x.type === 'temp' ? '🌡 ' + x.v.toFixed(1) + '℃' : x.type === 'note' ? '📝 ' + esc(x.v) : x.type === 'pee' ? '💧 소변·기저귀' : x.type === 'drink' ? '🥤 물·수유' : '💊 ' + DRUGS[x.type].name;
         return '<li class="' + (x.type === 'temp' && x.v >= 38 ? 'hot' : x.type === 'note' && /경련/.test(x.v) ? 'hot' : '') + '"><span class="tl-t">' + dayLabel(x.t) + ' ' + hm(x.t) + '</span><span class="tl-v">' + label + '</span><button class="tl-x" data-del="' + x.t + '" aria-label="지우기">✕</button></li>';
       }).join('') + '</ul>' : '<div class="kid-empty small">아직 기록이 없어요</div>') +
       '<div class="actions pad"><button class="btn ghost" id="med-share">📤 진료 때 보여줄 기록 공유</button><button class="btn ghost" id="med-clear">기록 모두 지우기</button></div>' + privNote('kid');
@@ -166,6 +214,9 @@
       var v = parseFloat(($('#temp-in').value || '').replace(',', '.'));
       if (!(v >= 34 && v <= 43)) { toast('체온을 34~43 사이 숫자로 적어 주세요'); return; }
       l.push({ t: pickedTime(), type: 'temp', v: Math.round(v * 10) / 10 }); saveLogs(kid.id, l); renderMed();
+    });
+    $$('#kid-med [data-quick]').forEach(function (b) {
+      b.addEventListener('click', function () { l.push({ t: pickedTime(), type: b.dataset.quick }); saveLogs(kid.id, l); toast((b.dataset.quick === 'pee' ? '소변' : '물·수유') + ' ' + hm(pickedTime()) + ' 기록했어요'); renderMed(); });
     });
     $$('#kid-med [data-sym]').forEach(function (b) { b.addEventListener('click', function () { b.classList.toggle('on'); }); });
     $('#sym-btn').addEventListener('click', function () {
@@ -188,7 +239,7 @@
     $('#med-share').addEventListener('click', function () {
       if (!confirmShare('해열제·체온 기록')) return;
       var lines = recent.slice().reverse().map(function (x) {
-        return dayLabel(x.t) + ' ' + hm(x.t) + '  ' + (x.type === 'temp' ? '체온 ' + x.v.toFixed(1) + '℃' : x.type === 'note' ? '메모: ' + x.v : DRUGS[x.type].name + ' 복용');
+        return dayLabel(x.t) + ' ' + hm(x.t) + '  ' + (x.type === 'temp' ? '체온 ' + x.v.toFixed(1) + '℃' : x.type === 'note' ? '메모: ' + x.v : x.type === 'pee' ? '소변·기저귀' : x.type === 'drink' ? '물·수유' : DRUGS[x.type].name + ' 복용');
       });
       shareText(kid.name + ' 해열제·체온 기록', '[' + kid.name + (kid.birth ? ' · ' + ageText(kid.birth) : '') + ' 해열제·체온 기록]\n' + (lines.join('\n') || '기록 없음') + '\n\n- 아이아플때 앱');
     });
@@ -545,6 +596,20 @@
     var on = !document.documentElement.classList.contains('big'); save('bigFont', on); applyFont(on);
     toast(on ? '글씨를 크게 했어요' : '글씨를 보통으로 했어요');
   });
+
+  // ───── 첫 실행 안내 ─────
+  (function () {
+    if (load('onboarded', false)) return;
+    var ob = $('#onboard'), i = 0, sl = $$('#onboard .ob-s'), dots = $$('#onboard .ob-dots i');
+    var go = function (n) {
+      i = n; sl.forEach(function (x, k) { x.hidden = k !== i; }); dots.forEach(function (x, k) { x.classList.toggle('on', k === i); });
+      $('#ob-next').textContent = i === sl.length - 1 ? '시작하기' : '다음';
+    };
+    var close = function () { ob.hidden = true; save('onboarded', true); };
+    $('#ob-next').addEventListener('click', function () { if (i < sl.length - 1) go(i + 1); else close(); });
+    $('#ob-skip').addEventListener('click', close);
+    ob.hidden = false;
+  })();
 
   // ───── 자료가 오래되면 경고 ─────
   K.getDB().then(function (db) {

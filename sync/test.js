@@ -8,15 +8,16 @@ const assert = require('assert');
 
 const H = [
   { ykiho: 'A1', yadmNm: '김천튼튼소아청소년과의원', clCdNm: '의원', sidoCd: '370000', sidoCdNm: '경북', sgguCd: '370100', sgguCdNm: '김천시', addr: '경북 김천시 A로 1', telno: '054-000-0001', XPos: '128.1131234567', YPos: '36.139', drTotCnt: '2',
-    d: { trmtMonStart: '0900', trmtMonEnd: '2100', trmtSunStart: '1000', trmtSunEnd: '1700', noTrmtHoli: '정상진료', lunchWeek: '13:00~14:00', emyNgtYn: 'Y', emyNgtTelNo1: '054-000-9999' } },
+    d: { trmtMonStart: '0900', trmtMonEnd: '2100', trmtSunStart: '1000', trmtSunEnd: '1700', noTrmtHoli: '정상진료', lunchWeek: '13:00~14:00', emyNgtYn: 'Y', emyNgtTelNo1: '054-000-9999', parkQty: '12', parkXpnsYn: 'N' } },
   { ykiho: 'A2', yadmNm: '구미아동병원', clCdNm: '병원', sidoCd: '370000', sidoCdNm: '경북', sgguCd: '370200', sgguCdNm: '구미시', addr: '경북 구미시 B로 2', telno: '054-000-0002', XPos: '128.344', YPos: '36.119',
     d: { trmtMonStart: '900', trmtMonEnd: '1800', noTrmtHoli: '휴진' } },
+  { ykiho: 'C1', yadmNm: '튼튼가정의원', clCdNm: '의원', sidoCd: '370000', sidoCdNm: '경북', sgguCd: '370100', sgguCdNm: '김천시', addr: '경북 김천시 D로 4', telno: '054-000-0004', XPos: '128.12', YPos: '36.13', d: null },
   { ykiho: 'B1', yadmNm: '서울&amp;하늘소아과의원', clCdNm: '의원', sidoCd: '110000', sidoCdNm: '서울', sgguCd: '110001', sgguCdNm: '강남구', addr: '서울 강남구 C로 3', telno: '02-000-0003', XPos: '127.03', YPos: '37.5', d: null },
 ];
 const xml = (items, total, code = '00') => `<?xml version="1.0"?><response><header><resultCode>${code}</resultCode><resultMsg>OK</resultMsg></header><body><items>${
   items.map((o) => '<item>' + Object.entries(o).map(([k, v]) => `<${k}>${v}</${k}>`).join('') + '</item>').join('')
 }</items><totalCount>${total}</totalCount></body></response>`;
-let detailCalls = 0, fullCalls = 0, pharmCalls = 0, failSeoul = false, brokenDetail = false;
+let detailCalls = 0, fullCalls = 0, pharmCalls = 0, transCalls = 0, sdrCalls = 0, failSeoul = false, brokenDetail = false;
 const mock = http.createServer((req, res) => {
   const q = new URL(req.url, 'http://x').searchParams;
   assert.strictEqual(q.get('serviceKey'), 'TESTKEY');
@@ -31,6 +32,16 @@ const mock = http.createServer((req, res) => {
       { dutyName: '서울하늘소아과의원', dutyDivNam: '소아전문센터', wgs84Lat: '37.5001', wgs84Lon: '127.0301' },
       { dutyName: '없는병원', dutyDivNam: '달빛어린이병원', wgs84Lat: '35.1', wgs84Lon: '129.0' },
     ], 3));
+  }
+  if (req.url.startsWith('/trans')) {
+    transCalls++;
+    return res.end(xml([{ trafNm: '버스', lineNo: '11', arivPlc: '김천역', dist: '200' }], 1));
+  }
+  if (req.url.startsWith('/sdr')) {
+    sdrCalls++;
+    const id = q.get('ykiho');
+    const rows = id === 'C1' ? [{ dgsbjtCdNm: '가정의학과', dtlSdrCnt: '1' }, { dgsbjtCdNm: '소아청소년과', dtlSdrCnt: '1' }] : [{ dgsbjtCdNm: '내과', dtlSdrCnt: '2' }];
+    return res.end(xml(rows, rows.length));
   }
   if (req.url.startsWith('/holi')) {
     const m = q.get('solMonth');
@@ -69,7 +80,7 @@ const mock = http.createServer((req, res) => {
   fs.mkdirSync(path.join(root, 'data'));
   fs.writeFileSync(path.join(root, 'data', 'moonlight.json'), JSON.stringify([{ _설명: 'x' }, { name: '구미아동병원', sido: '경북' }]));
   fs.writeFileSync(path.join(root, 'data', 'holidays.json'), '["2026-10-09"]');
-  Object.assign(process.env, { KIDCLINIC_ROOT: root, HIRA_SERVICE_KEY: 'TESTKEY', HIRA_LIST_URL: `http://127.0.0.1:${port}/list`, HIRA_DETAIL_URL: `http://127.0.0.1:${port}/detail`, DETAIL_DAILY_LIMIT: '2', NMC_BASE_URL: `http://127.0.0.1:${port}/nmc`, NMC_ER_BASE_URL: `http://127.0.0.1:${port}/er`, HOLIDAY_URL: `http://127.0.0.1:${port}/holi`, PHARM_URL: `http://127.0.0.1:${port}/pharm` });
+  Object.assign(process.env, { KIDCLINIC_ROOT: root, HIRA_SERVICE_KEY: 'TESTKEY', HIRA_LIST_URL: `http://127.0.0.1:${port}/list`, HIRA_DETAIL_URL: `http://127.0.0.1:${port}/detail`, DETAIL_DAILY_LIMIT: '2', NMC_BASE_URL: `http://127.0.0.1:${port}/nmc`, NMC_ER_BASE_URL: `http://127.0.0.1:${port}/er`, HOLIDAY_URL: `http://127.0.0.1:${port}/holi`, PHARM_URL: `http://127.0.0.1:${port}/pharm`, HIRA_TRANS_URL: `http://127.0.0.1:${port}/trans`, HIRA_SDR_URL: `http://127.0.0.1:${port}/sdr` });
   const s = require('./sync.js');
   let pass = 0; const ok = (c, m) => { assert.ok(c, m); pass++; console.log('  ✓ ' + m); };
   const out = () => JSON.parse(fs.readFileSync(path.join(root, 'docs', 'data', 'hospitals.json'), 'utf8'));
@@ -77,7 +88,7 @@ const mock = http.createServer((req, res) => {
   const log = console.log; console.log = () => {};
   await s.main();
   console.log = log;
-  ok(out().length === 3, '전국 3곳 저장');
+  ok(out().length === 4, '전국 4곳 저장');
   ok(detailCalls === 2, '진료시간 1회 상한(2) 지킴');
   ok(out().find((r) => r.i === 'B1').n === '서울&하늘소아과의원', 'XML 특수문자 복원');
   ok(out().find((r) => r.i === 'A2').m === 1, '달빛어린이병원 표시');
@@ -103,6 +114,11 @@ const mock = http.createServer((req, res) => {
   ok(ph.length === 1 && ph[0].h[1] === '0900-2300' && ph[0].hh === '1000-1800' && meta().pharmCount === 1, '약국 영업시간·공휴일');
   ok(pharmCalls === 1, '약국은 7일에 한 번만 받음');
   ok(!a1.hs && a1.h[1] === '0900-2100', '심평원 진료시간이 있으면 그대로 사용');
+  ok(a1.pk === '주차 12대 · 무료', '주차 정보');
+  ok(a1.tr && a1.tr[0] === '버스 11 김천역 하차 약 200m', '교통 정보(소아과·병원급)');
+  const c1 = out().find((r) => r.i === 'C1');
+  ok(c1.k === 1 && c1.sd === 1 && !c1.tr, '이름에 소아 없어도 소아청소년과 전문의 있으면 소아과로 분류');
+  ok(transCalls >= 2 && sdrCalls >= 4, '교통·전문의 조회');
   failSeoul = true; H.splice(1, 1);
   console.log = () => {}; console.error = () => {};
   await s.main();
@@ -118,7 +134,7 @@ const mock = http.createServer((req, res) => {
   console.log = () => {}; console.error = () => {};
   await s.main();
   console.log = log;
-  ok(detailCalls - before <= 4 && out().length === 2, '상세 서비스 없음(12) → 즉시 중단, 목록은 저장');
+  ok(detailCalls - before <= 4 && out().length === 3, '상세 서비스 없음(12) → 즉시 중단, 목록은 저장');
   console.log(`\n${pass}건 통과`);
   mock.close(); fs.rmSync(root, { recursive: true, force: true });
 })().catch((e) => { console.error('실패:', e); process.exit(1); });

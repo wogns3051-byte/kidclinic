@@ -15,6 +15,11 @@ const CFG = {
   // 주소가 바뀌면 GitHub Settings > Secrets and variables > Actions > Variables 에서 같은 이름으로 덮어쓸 수 있음
   listUrl: (process.env.HIRA_LIST_URL || '').trim() || 'https://apis.data.go.kr/B551182/hospInfoServicev2/getHospBasisList',
   detailUrl: (process.env.HIRA_DETAIL_URL || '').trim() || 'https://apis.data.go.kr/B551182/MadmDtlInfoService2.8/getDtlInfo2.8',
+  transUrl: (process.env.HIRA_TRANS_URL || '').trim() || 'https://apis.data.go.kr/B551182/MadmDtlInfoService2.8/getTrnsprtInfo2.8',
+  sdrUrl: (process.env.HIRA_SDR_URL || '').trim() || 'https://apis.data.go.kr/B551182/MadmDtlInfoService2.8/getSpcSbjtSdrInfo2.8',
+  transPerRun: Number(process.env.TRANS_DAILY_LIMIT || 4000),   // 소아과·병원급만, 90일마다
+  sdrPerRun: Number(process.env.SDR_DAILY_LIMIT || 6000),       // 전체 (소아과·병원급 먼저), 90일마다
+  extraMaxAgeDays: 90,
   deptCode: process.env.DEPT_CODE || '11', // 11 = 소아청소년과
   detailPerRun: Number(process.env.DETAIL_DAILY_LIMIT || 9000), // 심평원 일일 한도 10,000건
   detailMaxAgeDays: Number(process.env.DETAIL_MAX_AGE_DAYS || 30),
@@ -117,6 +122,15 @@ function hhmm(v) {
   if (s.length < 3) return null;
   return s.padStart(4, '0').slice(0, 4);
 }
+function parkText(d) {
+  const q = Number(String(d.parkQty || '').replace(/[^0-9]/g, '')) || 0;
+  const parts = [];
+  if (q > 0) parts.push('주차 ' + q + '대');
+  if (d.parkXpnsYn === 'Y') parts.push('유료'); else if (d.parkXpnsYn === 'N' && q > 0) parts.push('무료');
+  const etc = String(d.parkEtc || '').trim();
+  if (etc && etc.length <= 60) parts.push(etc);
+  return parts.join(' · ');
+}
 function parseDetail(d) {
   const hours = DAYS.map((K) => {
     const s = hhmm(d['trmt' + K + 'Start']), e = hhmm(d['trmt' + K + 'End']);
@@ -131,9 +145,47 @@ function parseDetail(d) {
     // 응급실 운영 (외래가 끝난 뒤 소아 환자를 받는 곳 — 외래 야간 진료와는 다름)
     erDay: d.emyDayYn === 'Y', erNight: d.emyNgtYn === 'Y',
     erTel: d.emyNgtTelNo1 || d.emyDayTelNo1 || '',
-    v: 2,
+    // 주차: parkQty 대수, parkXpnsYn 주차비 부담 여부(Y=유료), parkEtc 기타 안내
+    park: parkText(d),
+    v: 3,
     at: new Date().toISOString(),
   };
+}
+
+// ───── 부가 조회 (교통·전문의) ─────
+async function runQueue(label, url, targets, onItems) {
+  let n = 0, logged = false;
+  for (const h of targets) {
+    try {
+      const r = await callApi(url, { ykiho: h.id, pageNo: 1, numOfRows: 50 }, 2);
+      if (r.items[0] && !logged) { logged = true; console.log(`  (${label} 응답 항목 예시: ` + Object.keys(r.items[0]).join(', ') + ')'); }
+      onItems(h, r.items);
+      n++;
+      if (n % 500 === 0) console.log(`  ${label} ${n}곳 조회…`);
+    } catch (e) {
+      if (e.fatal) { console.error(`${label} 조회 중단: ${e.message}`); break; }
+    }
+  }
+  console.log(`${label} 이번에 ${n}곳 갱신`);
+}
+function transLine(it) {
+  const kind = it.trafNm || '';
+  const line = it.lineNo || '';
+  const stop = it.arivPlc || '';
+  const dir = it.dir || '';
+  const dist = String(it.dist || '').replace(/[^0-9]/g, '');
+  const txt = [kind, line, stop ? stop + ' 하차' : '', dir, dist ? '약 ' + dist + 'm' : ''].filter(Boolean).join(' ');
+  return txt || Object.values(it).filter((v) => typeof v === 'string' && v.length < 40).join(' ').slice(0, 80);
+}
+function pedsSpecialists(items) {
+  let n = 0;
+  for (const it of items) {
+    const name = Object.values(it).find((v) => typeof v === 'string' && /소아청소년과|소아과/.test(v));
+    if (!name) continue;
+    const cntKey = Object.keys(it).find((k) => /cnt$/i.test(k) && /^\d+$/.test(String(it[k]).trim()));
+    n += cntKey ? Number(it[cntKey]) : 1;
+  }
+  return n;
 }
 
 // ───── 실행 ─────
@@ -185,7 +237,7 @@ async function main() {
   // 2) 진료시간 (오래된 것부터, 상한만큼)
   const maxAge = CFG.detailMaxAgeDays * 86400000;
   const targets = Object.values(state.items)
-    .filter((h) => !h.detail || h.detail.v !== 2 || Date.now() - Date.parse(h.detail.at) > maxAge) // v2: 응급실 항목 추가로 한 번 다시 받음
+    .filter((h) => !h.detail || h.detail.v !== 3 || Date.now() - Date.parse(h.detail.at) > maxAge) // v3: 주차 항목 추가로 한 번 다시 받음
     // 소아과 전문·병원급 먼저, 그다음 오래된 순
     .sort((a, b) => (isPeds(b) - isPeds(a)) || ((a.detail ? Date.parse(a.detail.at) : 0) - (b.detail ? Date.parse(b.detail.at) : 0)))
     .slice(0, CFG.detailPerRun);
@@ -196,7 +248,7 @@ async function main() {
       try {
         const r = await callApi(CFG.detailUrl, { ykiho: h.id, pageNo: 1, numOfRows: 1 }, 2);
         if (r.items[0] && !loggedKeys) { loggedKeys = true; console.log('  (응답 항목 예시: ' + Object.keys(r.items[0]).join(', ') + ')'); }
-        h.detail = r.items[0] ? parseDetail(r.items[0]) : { hours: null, v: 2, at: new Date().toISOString() };
+        h.detail = r.items[0] ? parseDetail(r.items[0]) : { hours: null, v: 3, at: new Date().toISOString() };
         n++;
       } catch (e) {
         if (e.fatal) { if (!stop) console.error('상세 조회 중단: ' + e.message); stop = true; break; }
@@ -211,6 +263,19 @@ async function main() {
   const peds = all.filter(isPeds);
   console.log(`진료시간 이번에 ${n}곳 갱신 / 전체 ${all.length}곳 중 ${withHours}곳 보유 (소아과·병원급 ${peds.length}곳 중 ${peds.filter((h) => h.detail && h.detail.hours).length}곳)`);
   writeJson(P.state, state, true);
+
+  // 2-b) 교통정보(소아과·병원급) · 전문의 수(소아청소년과 전문의 있는지) — 작업마다 하루 한도가 따로 있음
+  const extraAge = CFG.extraMaxAgeDays * 86400000;
+  const stale = (x) => !x || Date.now() - Date.parse(x.at) > extraAge;
+  await runQueue('교통정보', CFG.transUrl,
+    Object.values(state.items).filter((h) => isPeds(h) && stale(h.trans)).slice(0, CFG.transPerRun),
+    (h, items) => { h.trans = { lines: items.map(transLine).filter(Boolean).slice(0, 3), at: new Date().toISOString() }; });
+  await runQueue('전문의 수', CFG.sdrUrl,
+    Object.values(state.items).filter((h) => stale(h.sdr)).sort((a, b) => isPeds(b) - isPeds(a)).slice(0, CFG.sdrPerRun),
+    (h, items) => { h.sdr = { peds: pedsSpecialists(items), at: new Date().toISOString() }; });
+  writeJson(P.state, state, true);
+  const sdrDone = Object.values(state.items).filter((h) => h.sdr).length;
+  console.log(`소아청소년과 전문의 확인: 전체 ${Object.keys(state.items).length}곳 중 ${sdrDone}곳 조회, ${Object.values(state.items).filter((h) => h.sdr && h.sdr.peds > 0).length}곳 전문의 있음`);
 
   // 3) 국립중앙의료원 보충 (달빛어린이병원, 심평원에 없는 진료시간)
   await require('./nmc.js').supplement(state, callApi);
@@ -245,11 +310,16 @@ function buildOutputs(state) {
     if (h.doctors) o.dr = h.doctors;
     if (h.url) o.u = h.url;
     if (h.moon) o.m = h.moon; else if (isMoon(h)) o.m = 1; // 1=달빛어린이병원, 2=소아전문센터
-    // 분류: 1=소아 전문(이름), 2=병원급(소아청소년과 있음), 3=일반 의원(진료과목에 소아청소년과만 등록)
+    // 분류: 1=소아 전문(이름 또는 소아청소년과 전문의 있음), 2=병원급(소아청소년과 있음), 3=일반 의원(진료과목에 소아청소년과만 등록)
+    if (/요양병원|정신병원|치과|한방|한의원/.test(h.type)) continue;
+    const sd = h.sdr ? h.sdr.peds : 0;
+    if (sd > 0) o.sd = sd;
     if (PEDS_NAME.test(h.name)) o.k = 1;
     else if (/상급종합|종합병원|^병원$/.test(h.type)) o.k = 2;
-    else if (/요양병원|정신병원|치과|한방|한의원/.test(h.type)) continue;
+    else if (sd > 0) o.k = 1;
     else o.k = 3;
+    if (o.k !== 3 && h.detail && h.detail.park) o.pk = h.detail.park;
+    if (o.k !== 3 && h.trans && h.trans.lines && h.trans.lines.length) o.tr = h.trans.lines;
     const d = h.detail, nm = h.nmc;
     if (d && d.erNight) { o.er = 1; if (d.erTel) o.et = d.erTel; }
     if (h.erInfo) { o.er = 1; if (h.erInfo.tel) o.et = h.erInfo.tel; if (h.erInfo.level) o.el = h.erInfo.level; } // 국립중앙의료원 지정 응급실
