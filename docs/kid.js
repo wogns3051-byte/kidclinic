@@ -915,6 +915,7 @@
   $$('#kid-seg button').forEach(function (b) { b.addEventListener('click', function () { showPane(b.dataset.k); }); });
   K.onShow.benefit = function (opt) { showPane(opt && opt.pane ? opt.pane : pane); };
   K.showPane = function (k) { showPane(k); };
+  if (K.FEEDBACK_URL) $$('.kid-fb').forEach(function (b) { b.hidden = false; });
   setInterval(function () { if (!$('#kid-med').hidden && !$('#tab-benefit').hidden && document.activeElement && document.activeElement.tagName !== 'INPUT') renderMed(); }, 60000);
 
   // ───── 큰 글씨 ─────

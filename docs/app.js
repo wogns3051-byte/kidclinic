@@ -3,6 +3,16 @@
   'use strict';
   var PAGES_URL = (window.APP_CONFIG && window.APP_CONFIG.PAGES_URL || '').replace(/\/+$/, '');
   var REPORT_URL = (window.APP_CONFIG && window.APP_CONFIG.REPORT_URL || '').trim();
+  var FEEDBACK_URL = (window.APP_CONFIG && window.APP_CONFIG.FEEDBACK_URL || '').trim();
+  if (!/^https:\/\/open\.kakao\.com\//.test(FEEDBACK_URL)) FEEDBACK_URL = '';
+  // 💬 오픈채팅으로 의견 보내기 (나가기 전에 개인정보 안내)
+  function openFeedback(copyText) {
+    if (!FEEDBACK_URL) return;
+    var go = function () { location.href = FEEDBACK_URL; };
+    var msg = '카카오톡 오픈채팅 "의견방"으로 이동해요.\n\n• 오픈채팅은 카카오 서비스라, 들어가면 고른 프로필(닉네임)이 방 사람들에게 보여요.\n• 아이 이름·생년월일·연락처 같은 개인정보는 올리지 말아 주세요.\n• 위급할 때는 채팅 말고 바로 119!' + (copyText ? '\n\n병원 정보를 복사해 둘게요. 채팅창에 붙여 넣어 주세요.' : '') + '\n\n이동할까요?';
+    if (!confirm(msg)) return;
+    if (copyText && navigator.clipboard) navigator.clipboard.writeText(copyText).then(go, go); else go();
+  }
   var ER_BEDS_URL = (window.APP_CONFIG && window.APP_CONFIG.ER_BEDS_URL || 'https://mediboard.nemc.or.kr/emergency_room_in_hand').trim();
   function bedsLink(cls) { return '<a class="btn ' + (cls || 'ghost') + ' beds-btn" href="' + ER_BEDS_URL + '" target="_blank" rel="noopener">🛏 응급실 실시간 병상 보기 ↗</a>'; }
   // 휴대폰 앱(Capacitor) 안이면 GitHub Pages 에서, 웹으로 열면 같은 사이트의 data 폴더에서 받는다
@@ -749,7 +759,7 @@
           (h.trans || []).map(function (t) { return '<div>' + (/지하철|전철/.test(t) ? '🚇 ' : '🚌 ') + esc(t) + '</div>'; }).join('') + '</div>' : '') +
         staffBlock(h) +
         memoBlock(h) +
-        (REPORT_URL ? '<button class="btn ghost report" id="report-btn">정보가 달라요</button>' : '') +
+        (REPORT_URL || FEEDBACK_URL ? '<button class="btn ghost report" id="report-btn">✏️ 정보가 달라요 (알려 주기)</button>' : '') +
         '<div class="note">진료시간·휴진은 병원 사정으로 바뀔 수 있어요. 방문 전 꼭 전화로 확인하세요.<br>자료: 건강보험심사평가원 병원정보서비스' + (d.src ? ' · 진료시간: ' + d.src : '') + (h.moonlight ? ' · 달빛어린이병원: 국립중앙의료원' : '') + '</div>';
       if ($('#after-pharm')) afterPharm(h, $('#after-pharm'));
       holWeek(h);
@@ -764,6 +774,7 @@
       });
       var rb = $('#report-btn');
       if (rb) rb.addEventListener('click', function () {
+        if (!REPORT_URL) { openFeedback('[정보 수정 요청]\n병원: ' + h.name + '\n주소: ' + (h.addr || '') + '\n다른 점: '); return; }
         var u = REPORT_URL.replace('{name}', encodeURIComponent(h.name)).replace('{addr}', encodeURIComponent(h.addr || ''));
         location.href = u;
       });
@@ -783,6 +794,7 @@
     }).catch(function (e) { $('#sheet-body').innerHTML = '<div class="empty"><b>불러오지 못했어요</b>' + esc(e.message) + '</div>'; });
   }
   document.addEventListener('click', function (e) {
+    if (e.target.closest && e.target.closest('[data-feedback]')) { e.preventDefault(); openFeedback(''); return; }
     if (e.target.closest && e.target.closest('[data-stop]')) return; // 전화·길찾기는 그대로
     var li = e.target.closest && e.target.closest('.item');
     if (!li) return;
@@ -971,7 +983,7 @@
   // ───── kid.js 에 도구 넘기기 ─────
   var KC = window.KC = { $: $, $$: $$, esc: esc, load: load, save: save, toast: toast, api: api, show: show,
     getDB: getDB, kstNow: kstNow, locate: locate, card: card, loadBenefit: loadBenefit, onShow: {},
-    ER_BEDS_URL: ER_BEDS_URL, fetchJson: fetchJson, DATA_BASE: DATA_BASE,
+    ER_BEDS_URL: ER_BEDS_URL, FEEDBACK_URL: FEEDBACK_URL, openFeedback: openFeedback, fetchJson: fetchJson, DATA_BASE: DATA_BASE,
     shareText: function (t, x) { if (navigator.share) navigator.share({ title: t, text: x }).catch(function () {}); else if (navigator.clipboard) navigator.clipboard.writeText(x).then(function () { toast('복사했어요'); }); } };
 
   getDB().then(function (db) { KC.db = db; }).catch(function () {});
@@ -1068,7 +1080,8 @@
       '<b>위치 정보</b> 내 위치는 가까운 병원·약국을 찾는 데만 휴대폰 안에서 쓰고, 어디에도 보내거나 저장하지 않아요.<br>' +
       '<b>자료</b> 건강보험심사평가원, 국립중앙의료원, 한국천문연구원 공공데이터' + (d ? ' (' + d + ' 갱신)' : '') + '<br>' +
       '<b>주의</b> 진료시간은 바뀔 수 있으니 방문 전 꼭 전화로 확인하세요. 위급하면 119.<br>' +
-      '<a href="privacy.html">개인정보 처리방침</a>';
+      '<a href="privacy.html">개인정보 처리방침</a>' +
+      (FEEDBACK_URL ? '<button class="fb-btn" data-feedback>💬 의견 보내기 · 오류 제보 (카카오톡 오픈채팅)</button>' : '');
   }).catch(function () {});
   api('/health').then(function (h) {
     if (h.listUpdatedAt) $('#updated').textContent = '전국 ' + h.hospitals.toLocaleString() + '곳 · ' + h.listUpdatedAt.slice(5, 10).replace('-', '/') + ' 갱신';

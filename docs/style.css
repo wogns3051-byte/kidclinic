@@ -1070,3 +1070,5 @@ html.daytime .brand-wrap .sub { color: rgba(255,255,255,.9); }
 .why-b b { color: var(--ink); } .why-b > div > b:first-child { display: block; margin-bottom: 1px; }
 .why-f { padding: 8px 10px; border-radius: 10px; background: var(--brand-soft, #E7F6F1); color: var(--ink); }
 .why-f b:first-child { display: inline !important; margin: 0 !important; }
+.fb-btn { display: block; width: 100%; margin-top: 10px; height: 44px; border-radius: 14px; border: 0; background: #FEE500; color: #191600; font-weight: 800; font-size: 14px; font-family: inherit; }
+.kid-fb { margin-top: 8px; height: 40px; font-size: 13px; }
