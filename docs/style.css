@@ -1030,3 +1030,13 @@ html.daytime .brand-wrap .sub { color: rgba(255,255,255,.9); }
 .hc-all { height: 36px; border: 0; background: none; color: var(--brand); font-weight: 700; font-size: 13px; font-family: inherit; }
 @media (prefers-color-scheme: dark) { .home-card { border-color: #1E4A44; } .qa-call { color: #0F1424; } }
 .home-tip { margin-top: 6px; padding: 8px 12px; border-radius: 12px; background: #FFF4D6; color: #7A5A12; font-size: 12px; line-height: 1.5; } @media (prefers-color-scheme: dark) { .home-tip { background: var(--butter-soft); color: #F0D080; } }
+
+/* ───── v11: 설치 안내 ───── */
+.install { border: 2px solid #BFE6DC; background: linear-gradient(135deg, #F0FBF7, #F4F5FF); border-radius: 18px; }
+.install .btn { border-radius: 999px; font-size: 13px; }
+.inst-steps { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 8px; }
+.inst-steps li { display: grid; grid-template-columns: 40px 1fr; gap: 10px; align-items: start; padding: 10px 12px; border-radius: 16px; background: var(--card); border: 1px solid var(--line); }
+.is-ic { width: 40px; height: 40px; border-radius: 50%; background: var(--bg); display: grid; place-items: center; font-size: 19px; }
+.inst-steps b { display: block; font-size: 15px; } .inst-steps small { display: block; font-size: 13px; color: var(--muted); line-height: 1.5; margin-top: 2px; }
+#inst-done { width: 100%; margin-top: 4px; } #inst-later { width: 100%; margin-top: 8px; }
+@media (prefers-color-scheme: dark) { .install { border-color: #1E4A44; background: linear-gradient(135deg, #173B3B, #23284F); } }

@@ -850,26 +850,65 @@
   if ($('#beds-top')) $('#beds-top').href = ER_BEDS_URL;
   if ($('#open-fav')) $('#open-fav').addEventListener('click', function () { show('fav'); });
   // ───── 홈 화면 설치 안내 ─────
+  // 설치해서(홈 화면 아이콘으로) 열면 나오지 않음. ✕ 는 7일 동안 숨기고, "이미 설치했어요"는 이 브라우저에서 다시 안 나옴.
   (function () {
     var standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
-    if (standalone || window.Capacitor || load('installDismissed', false)) return;
+    if (standalone) { save('installDone', true); return; }
+    if (window.Capacitor || load('installDone', false) || load('installDismissed', false)) return;
+    var snooze = load('installSnooze', 0);
+    if (snooze && Date.now() - snooze < 7 * 86400000) return;
     var box = $('#install'), btn = $('#install-btn'), deferred = null;
     var ua = navigator.userAgent;
     var isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferred = e; box.hidden = false; });
+    var inKakao = /KAKAOTALK/i.test(ua), inApp = inKakao || /NAVER|Instagram|FBAN|FBAV|Line\//i.test(ua);
+    var isSamsung = /SamsungBrowser/i.test(ua);
+    var setText = function (t, s) { $('#install-text').innerHTML = '<b>' + t + '</b>' + s; };
+    var showBtn = function (label) { btn.textContent = label; btn.hidden = false; box.hidden = false; };
+    window.addEventListener('beforeinstallprompt', function (e) {
+      e.preventDefault(); deferred = e;
+      setText('홈 화면에 앱으로 설치', '한 번 설치하면 아이콘 하나로 바로 열려요'); showBtn('설치');
+    });
     if (isIOS) {
-      $('#install-text').innerHTML = /CriOS|FxiOS|KAKAOTALK|NAVER/i.test(ua)
-        ? '<b>Safari로 열어 주세요</b>Safari에서 공유 → 홈 화면에 추가'
-        : '<b>홈 화면에 추가하면 앱처럼 써요</b>아래 공유 버튼(□↑) → 홈 화면에 추가';
-      btn.hidden = true; box.hidden = false;
+      if (inApp) setText('Safari로 열어서 설치해 주세요', '카톡·앱 안 화면에서는 설치가 안 돼요');
+      else if (/CriOS|FxiOS|EdgiOS/i.test(ua)) setText('홈 화면에 앱으로 설치', '공유(□↑) → 홈 화면에 추가 (Safari가 가장 확실해요)');
+      else setText('홈 화면에 추가하면 앱처럼 써요', '설치하면 우리 동네·아이 기록이 오래 유지돼요');
+      showBtn(inKakao ? 'Safari로 열기' : '설치 방법');
+    } else if (inApp) {
+      setText('크롬에서 열어서 설치해 주세요', '앱 안 화면에서는 설치가 잘 안 돼요'); showBtn(inKakao ? '크롬으로 열기' : '설치 방법');
+    } else if (isSamsung) {
+      setText('홈 화면에 앱으로 설치', '메뉴(≡) → 페이지 추가 → 홈 화면'); showBtn('설치 방법');
+    } else {
+      // 크롬은 beforeinstallprompt 가 오면 '설치' 버튼으로 바뀜. 안 오면 메뉴 안내
+      setTimeout(function () { if (!deferred && box.hidden) { setText('홈 화면에 앱으로 설치', '메뉴(⋮) → 홈 화면에 추가 · 앱 설치'); showBtn('설치 방법'); } }, 2500);
+    }
+    function guide() {
+      var steps = isIOS ? [
+        ['🧭', 'Safari로 열기', inApp ? '지금은 앱 안 화면이에요. ⋯ 또는 나침반 버튼 → "Safari로 열기"를 눌러 주세요.' : '지금 Safari로 잘 열려 있어요.'],
+        ['⬆️', '공유 버튼 누르기', '화면 아래 공유 버튼(□↑)을 눌러요. 안 보이면 주소창 옆 ⋯ → 공유.'],
+        ['➕', '"홈 화면에 추가"', '메뉴를 위로 올려 "홈 화면에 추가"를 눌러요. "웹 앱으로 열기"가 보이면 켜 두세요.'],
+        ['✅', '"추가" 누르기', '오른쪽 위 "추가"를 누르면 홈 화면에 아기 얼굴 아이콘이 생겨요.'],
+        ['👶', '앞으로는 아이콘으로 열기', '아이콘으로 열어야 앱처럼 보이고 기록이 안 지워져요. Safari 화면과 아이콘 화면은 저장 공간이 달라서, 쓰던 기록은 💾 백업 → 📂 불러오기로 옮겨요.']
+      ] : [
+        ['🌐', '크롬(또는 삼성 인터넷)으로 열기', inApp ? '지금은 앱 안 화면이에요. ⋮ 메뉴 → "다른 브라우저로 열기"를 눌러 주세요.' : '지금 브라우저에서 바로 설치할 수 있어요.'],
+        ['⋮', '메뉴 열기', '크롬은 오른쪽 위 ⋮, 삼성 인터넷은 아래 ≡ 를 눌러요.'],
+        ['➕', '"홈 화면에 추가" 또는 "앱 설치"', '삼성 인터넷은 "페이지 추가 → 홈 화면"이에요.'],
+        ['👶', '아이콘으로 열기', '홈 화면의 아기 얼굴 아이콘으로 열면 앱처럼 써요.']
+      ];
+      $('#sheet-body').innerHTML = '<h2>📱 홈 화면에 앱으로 설치하기</h2><div class="tg-sub">앱스토어 없이 무료로 설치돼요. 개인정보를 따로 받지 않아요.</div>' +
+        '<ol class="inst-steps">' + steps.map(function (x, i) { return '<li><span class="is-ic">' + x[0] + '</span><div><b>' + (i + 1) + '. ' + x[1] + '</b><small>' + x[2] + '</small></div></li>'; }).join('') + '</ol>' +
+        '<button class="btn" id="inst-done">이미 설치했어요 · 다시 보지 않기</button>' +
+        '<button class="btn ghost" id="inst-later">나중에 할게요</button>';
+      $('#sheet').hidden = false; $('#sheet-bg').hidden = false; $('#sheet').scrollTop = 0;
+      $('#inst-done').addEventListener('click', function () { save('installDone', true); box.hidden = true; closeSheet(); toast('앞으로는 홈 화면 아이콘으로 열어 주세요'); });
+      $('#inst-later').addEventListener('click', function () { save('installSnooze', Date.now()); box.hidden = true; closeSheet(); });
     }
     btn.addEventListener('click', function () {
-      if (!deferred) return;
-      deferred.prompt();
-      deferred.userChoice.then(function () { deferred = null; box.hidden = true; });
+      if (deferred) { deferred.prompt(); deferred.userChoice.then(function (c) { deferred = null; if (c && c.outcome === 'accepted') { save('installDone', true); box.hidden = true; } }); return; }
+      if (inKakao) { location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(location.href); setTimeout(guide, 800); return; }
+      guide();
     });
-    $('#install-x').addEventListener('click', function () { box.hidden = true; save('installDismissed', true); });
-    window.addEventListener('appinstalled', function () { box.hidden = true; toast('설치됐어요. 홈 화면에서 열어 보세요'); });
+    $('#install-x').addEventListener('click', function () { box.hidden = true; save('installSnooze', Date.now()); toast('7일 뒤에 다시 알려 드릴게요'); });
+    window.addEventListener('appinstalled', function () { save('installDone', true); box.hidden = true; toast('설치됐어요. 홈 화면에서 열어 보세요'); });
   })();
   if ('serviceWorker' in navigator && !window.Capacitor && location.protocol === 'https:') {
     navigator.serviceWorker.register('sw.js').catch(function () {});
