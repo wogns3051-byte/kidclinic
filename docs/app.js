@@ -617,7 +617,7 @@
   // 👩‍⚕️ 의료진·진료과목 (심평원 자료: 의사 구성, 과목별 전문의 수, 진료과목)
   function staffBlock(h) {
     var z = h.staff || [0, 0, 0, 0], total = h.doctors || 0;
-    if (!total && !h.specs.length && !h.subjects.length) return '<div class="sub-h">의료진 · 전문분야</div><div class="staff">' + doctorLinks(h) + '</div>';
+    if (!total && !h.specs.length && !h.subjects.length) return '<div class="sub-h">의료진 · 전문분야</div><div class="staff">' + whyNoDoctor() + doctorLinks(h) + '</div>';
     var parts = [];
     if (z[0]) parts.push('전문의 ' + z[0] + '명'); if (z[1]) parts.push('일반의 ' + z[1] + '명');
     if (z[2]) parts.push('레지던트 ' + z[2] + '명'); if (z[3]) parts.push('인턴 ' + z[3] + '명');
@@ -633,13 +633,23 @@
         return '<em class="' + (/소아/.test(x[0]) ? 'peds' : '') + '">' + esc(x[0]) + ' ' + x[1] + '명</em>'; }).join('') + '</div></div>' : '') +
       (h.subjects.length ? '<div class="st-row"><span>진료과목</span><div class="st-chips sj">' + h.subjects.map(function (x) {
         return '<em class="' + (/소아/.test(x) ? 'peds' : '') + '">' + esc(x) + '</em>'; }).join('') + '</div></div>' : '') +
-      '<div class="st-note">' + (peds ? '분홍 동그라미는 소아청소년과 전문의, ' : '') + '🧑‍⚕️ 전문의 · 👤 일반의·수련의예요. 의사 이름·사진·세부 전문분야(예: 알레르기·성장)는 공공데이터에 없어서, 병원이 직접 올린 소개를 보세요.</div>' +
+      '<div class="st-note">' + (peds ? '분홍 동그라미는 소아청소년과 전문의, ' : '') + '🧑‍⚕️ 전문의 · 👤 일반의·수련의예요.</div>' +
+      whyNoDoctor() +
       doctorLinks(h) + '</div>';
   }
   // 👩‍⚕️ 의료진 소개 페이지로 더 정확하게: ① 내가 저장한 페이지 ② 병원 누리집(심평원 등록) ③ 네이버 지도(병원 위치 중심) ④ 네이버 검색(이름+동네+도로명)
   function roadOf(addr) {
     var m = /([가-힣0-9]+(?:로|길))\s*\d/.exec(addr || '') || /([가-힣0-9]+(?:동|읍|면|리))(?:\s|$)/.exec(addr || '');
     return m ? m[1] : '';
+  }
+  // 의사 이름·사진을 앱에서 보여 줄 수 없는 이유 (엄마들이 납득할 수 있게)
+  function whyNoDoctor() {
+    return '<details class="why"><summary>❓ 의사 이름·사진·전문분야는 왜 안 나와요?</summary><div class="why-b">' +
+      '<div><b>1. 공공데이터에 없어요</b>건강보험심사평가원은 병원 단위 정보(의사 수, 과목별 전문의 수, 진료과목)까지만 공개해요. 의사 이름·사진·경력은 <b>의사 개인의 개인정보</b>라서 나라에서 공개하지 않아요.</div>' +
+      '<div><b>2. 네이버 등의 의료진 소개는 가져올 수 없어요</b>네이버·병원 앱에 있는 의료진 소개는 <b>병원이 그 회사에 직접 올린 정보</b>예요. 다른 앱이 받아 쓸 수 있는 공개 통로가 없고, 몰래 가져오면 이용약관 위반이자 사진·글 저작권 침해가 돼요.</div>' +
+      '<div><b>3. 확인된 정보만 보여 드려요</b>아이아플때는 광고 없는 무료 서비스라 <b>나라가 공개한 확인된 자료</b>만 보여 드려요. 출처가 불분명한 정보로 엄마들이 헷갈리지 않게 하려는 거예요.</div>' +
+      '<div class="why-f">그래서 아래 버튼으로 <b>병원이 직접 올린 의료진 소개</b>를 네이버에서 바로 볼 수 있게 연결해 두었어요.</div>' +
+      '</div></details>';
   }
   function doctorLinks(h) {
     var m = memoOf(h.id) || {}, q = (h.name + ' ' + (h.sggu || '') + ' ' + roadOf(h.addr)).trim();

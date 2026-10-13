@@ -1062,3 +1062,11 @@ html.daytime .brand-wrap .sub { color: rgba(255,255,255,.9); }
 @media (prefers-color-scheme: dark) { .dl-a.mine { background: var(--butter-soft); border-color: #6A5A2A; } }
 .dl .st-link { color: #fff; }
 .dl-save { border: 0; background: none; color: var(--muted); font-size: 12px; text-decoration: underline; padding: 2px 0; font-family: inherit; justify-self: start; }
+.why { border-radius: 14px; background: var(--bg); }
+.why summary { padding: 10px 12px; font-size: 13px; font-weight: 700; color: var(--ink); cursor: pointer; list-style: none; }
+.why summary::-webkit-details-marker { display: none; } .why summary::after { content: ' ›'; color: var(--muted); }
+.why[open] summary::after { content: ' ⌄'; }
+.why-b { display: grid; gap: 8px; padding: 0 12px 12px; font-size: 12.5px; line-height: 1.55; color: var(--muted); }
+.why-b b { color: var(--ink); } .why-b > div > b:first-child { display: block; margin-bottom: 1px; }
+.why-f { padding: 8px 10px; border-radius: 10px; background: var(--brand-soft, #E7F6F1); color: var(--ink); }
+.why-f b:first-child { display: inline !important; margin: 0 !important; }
