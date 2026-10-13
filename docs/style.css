@@ -909,3 +909,40 @@ html.daytime .brand-wrap .sub { color: rgba(255,255,255,.9); }
 }
 .scan-drug { grid-template-columns: 1.4fr 1fr .7fr 30px; }
 .scan-drug input { padding: 0 8px; font-size: 13.5px; }
+
+/* ───── v7: 오늘의 우리아이 · 실손 청구 · 소리 ───── */
+.today-card { margin: 10px 12px 0; padding: 12px 14px; border-radius: 22px; background: linear-gradient(150deg, #FFF8E6, #FFEFF4); border: 1px solid #FFE0B8; display: grid; gap: 8px; }
+.td-h { display: grid; gap: 1px; } .td-h b { font-family: var(--display); font-weight: 400; font-size: 17px; } .td-h span { font-size: 12px; color: #9A7A6A; }
+.td-kid { display: grid; gap: 6px; }
+.td-name { font-weight: 800; font-size: 13px; color: #B05A78; margin-top: 2px; }
+.td-row { display: grid; grid-template-columns: 30px 1fr; gap: 8px; align-items: start; padding: 9px 10px; border-radius: 14px; background: rgba(255,255,255,.75); font-size: 14px; cursor: pointer; }
+.td-ic { font-size: 18px; text-align: center; line-height: 1.3; }
+.td-row small { display: block; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+.td-row b.hot { color: var(--red); }
+.td-slot { height: 30px; padding: 0 12px; margin: 4px 4px 0 0; border-radius: 999px; border: 2px dashed var(--brand); background: #fff; color: var(--brand); font-weight: 800; font-size: 13px; font-family: inherit; }
+.td-ok { color: var(--brand); font-weight: 700; }
+.td-calm { font-size: 13.5px; color: #8E7480; padding: 4px 2px; }
+.td-priv { font-size: 11px; color: #A08A90; }
+.claim-box { margin: 10px 12px 0; border-radius: 18px; border: 1px solid var(--line); background: var(--card); }
+.claim-box.todo { border-color: #FFD58A; background: #FFF9EA; }
+.claim-box summary { padding: 12px 14px; font-size: 14px; cursor: pointer; list-style: none; } .claim-box summary::-webkit-details-marker { display: none; }
+.claim-box summary::after { content: ' ›'; color: var(--muted); }
+.claim-guide { display: grid; gap: 8px; padding: 0 14px 14px; font-size: 13px; line-height: 1.55; }
+.claim-guide b { margin-right: 4px; }
+.claim-links { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; } .claim-links .btn { height: 40px; font-size: 12.5px; display: grid; place-items: center; padding: 0 6px; }
+.vis-claim { font-size: 12.5px; margin-top: 4px; color: var(--muted); }
+.vis-claim.todo { color: #9A6A00; } .vis-claim.ok { color: var(--brand); }
+.vis-claim a { color: var(--brand); font-weight: 700; }
+.phr { position: relative; padding-right: 48px; }
+.phr-say { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); width: 34px; height: 34px; border-radius: 50%; background: var(--brand-soft, #E7F6F1); display: grid; place-items: center; font-size: 16px; }
+.say-big { width: 100%; height: 64px; font-size: 20px; margin-top: 8px; }
+.say-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+@media (prefers-color-scheme: dark) {
+  .today-card { background: linear-gradient(150deg, #2E2A22, #33222E); border-color: #4A3A2A; }
+  .td-h span { color: #C9A99A; } .td-row { background: rgba(255,255,255,.06); }
+  .td-slot { background: transparent; } .td-name { color: #FF9DB8; } .td-calm, .td-priv { color: #B79AA8; }
+  .claim-box.todo { background: #3A3218; border-color: #6A5A2A; }
+  .vis-claim.todo { color: #F0D080; }
+}
+.td-more { display: grid; gap: 6px; } .td-more summary { font-size: 12.5px; color: #B05A78; cursor: pointer; padding: 2px 4px; } .td-more[open] summary { margin-bottom: 6px; }
+.td-more .td-row { margin-top: 6px; }

@@ -23,7 +23,12 @@
     faNote: { ko: '이 안내는 진단이 아니에요. 아이 상태가 걱정되면 119에 전화해 상담원의 안내를 따르세요. 심폐소생술은 119 상담원이 전화로 알려 줘요.', en: 'This is not medical advice. If you are worried, call 119 and follow the dispatcher. The 119 dispatcher can guide you through CPR by phone.', vi: 'Đây không phải là chẩn đoán. Nếu lo lắng, hãy gọi 119 và làm theo hướng dẫn. Nhân viên 119 có thể hướng dẫn hồi sức tim phổi (CPR) qua điện thoại.', zh: '本指南不是诊断。如果担心孩子，请拨打 119 并按接线员的指示操作。119 接线员可以通过电话指导心肺复苏。' },
     faSrc: { ko: '참고: 질병관리청 국가건강정보포털, 대학병원 공개 건강정보 등 (2026.10 확인)', en: 'Based on public guidance from the Korea Disease Control and Prevention Agency and university hospitals (checked Oct 2026)', vi: 'Dựa trên hướng dẫn công khai của Cơ quan Kiểm soát và Phòng ngừa Dịch bệnh Hàn Quốc và các bệnh viện đại học (10/2026)', zh: '参考：韩国疾病管理厅国家健康信息门户、大学医院公开的健康信息等（2026年10月）' },
     phraseTitle: { ko: '119·병원에 보여 줄 한국어', en: 'Show this Korean to 119 or the hospital', vi: 'Đưa câu tiếng Hàn này cho 119 hoặc bệnh viện', zh: '给 119 或医院看的韩语句子' },
-    phraseSub: { ko: '문장을 누르면 크게 보여요.', en: 'Tap a sentence to show it in large text.', vi: 'Chạm vào câu để hiện chữ lớn.', zh: '点击句子可放大显示。' },
+    phraseSub: { ko: '문장을 누르면 크게 보여요. 🔊를 누르면 휴대폰이 한국어로 읽어 줘요.', en: 'Tap a sentence to show it in large text. Tap 🔊 and the phone reads it aloud in Korean.', vi: 'Chạm vào câu để hiện chữ lớn. Chạm 🔊 để điện thoại đọc to bằng tiếng Hàn.', zh: '点击句子可放大显示。点击 🔊，手机会用韩语读出来。' },
+    say: { ko: '🔊 소리로 들려주기', en: '🔊 Play in Korean', vi: '🔊 Phát bằng tiếng Hàn', zh: '🔊 用韩语播放' },
+    sayAgain: { ko: '🐢 천천히 다시', en: '🐢 Slower', vi: '🐢 Chậm hơn', zh: '🐢 慢一点再放' },
+    sayStop: { ko: '⏹ 멈추기', en: '⏹ Stop', vi: '⏹ Dừng', zh: '⏹ 停止' },
+    sayTip: { ko: '119에 전화해 스피커폰을 켜고 들려주세요. 휴대폰에 한국어 음성이 없으면 발음이 어색할 수 있어요. 문장은 휴대폰 음성 기능으로 읽고, 아이 정보는 읽지 않아요.', en: 'Call 119, turn on speakerphone and let them hear it. If your phone has no Korean voice, the pronunciation may sound odd. The phone\'s own voice feature reads only this sentence, never your child\'s information.', vi: 'Gọi 119, bật loa ngoài và cho họ nghe. Nếu điện thoại không có giọng tiếng Hàn, phát âm có thể không tự nhiên. Điện thoại chỉ đọc câu này, không đọc thông tin của bé.', zh: '拨打 119，打开免提让对方听。如果手机没有韩语语音，发音可能不自然。手机只朗读这句话，不会读出孩子的信息。' },
+    noVoice: { ko: '이 휴대폰은 소리 읽기를 지원하지 않아요. 화면을 보여 주세요.', en: 'This phone cannot read aloud. Please show the screen instead.', vi: 'Điện thoại này không hỗ trợ đọc to. Hãy cho xem màn hình.', zh: '这部手机不支持朗读，请直接出示屏幕。' },
     danuri: { ko: '📞 다누리콜센터 1577-1366 · 24시간 13개 언어 상담·통역', en: '📞 Danuri Call Center 1577-1366 · 24/7, 13 languages (counseling & interpretation)', vi: '📞 Tổng đài Danuri 1577-1366 · 24/7, 13 ngôn ngữ (tư vấn & phiên dịch)', zh: '📞 Danuri 呼叫中心 1577-1366 · 24小时，13种语言（咨询·翻译）' },
     showCard: { ko: '🪪 응급 카드 보여 주기', en: '🪪 Show emergency card', vi: '🪪 Hiện thẻ cấp cứu', zh: '🪪 出示急救卡' },
     langTitle: { ko: '언어 고르기', en: 'Language', vi: 'Ngôn ngữ', zh: '语言' },
@@ -118,6 +123,19 @@
     { ko: '천천히 말해 주세요.', en: 'Please speak slowly.', vi: 'Xin hãy nói chậm.', zh: '请说慢一点。' }
   ];
 
+  // 🔊 한국어로 읽어 주기 (휴대폰 음성 기능)
+  function say(text, rate) {
+    if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') { K.toast(t('noVoice')); return; }
+    try {
+      speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(text); u.lang = 'ko-KR'; u.rate = rate || 0.9; u.pitch = 1;
+      var vs = speechSynthesis.getVoices() || [], ko = vs.filter(function (v) { return /^ko/i.test(v.lang); });
+      if (ko.length) u.voice = ko.filter(function (v) { return v.localService; })[0] || ko[0];
+      speechSynthesis.speak(u);
+    } catch (e) { K.toast(t('noVoice')); }
+  }
+  if ('speechSynthesis' in window) { try { speechSynthesis.getVoices(); } catch (e) {} }
+  K.say = say;
   function sheet(html) {
     $('#sheet-body').innerHTML = html;
     $('#sheet').hidden = false; $('#sheet-bg').hidden = false; $('#sheet').scrollTop = 0;
@@ -155,18 +173,25 @@
   }
   function openPhrases() {
     sheet(langBar() + '<h2>🗣 ' + t('phraseTitle') + '</h2><div class="tg-sub">' + t('phraseSub') + '</div>' +
-      '<div class="phr-list">' + PHRASES.map(function (p, i) { return '<button class="phr" data-phr="' + i + '"><b lang="ko">' + esc(p.ko) + '</b>' + (lang !== 'ko' ? '<span>' + esc(p[lang]) + '</span>' : '') + '</button>'; }).join('') + '</div>' +
+      '<div class="phr-list">' + PHRASES.map(function (p, i) { return '<button class="phr" data-phr="' + i + '"><b lang="ko">' + esc(p.ko) + '</b>' + (lang !== 'ko' ? '<span>' + esc(p[lang]) + '</span>' : '') + '<span class="phr-say" data-say="' + i + '" role="button" aria-label="소리로 듣기">🔊</span></button>'; }).join('') + '</div>' +
       '<button class="btn ghost" data-go-tab="benefit" data-go-pane="card">' + t('showCard') + '</button>' +
       '<a class="btn ghost phr-call" href="tel:15771366">' + t('danuri') + '</a>' +
       '<a class="tg-119" href="tel:119">' + t('call119') + '</a>' +
       (lang !== 'ko' ? '<div class="note">' + t('translateNote') + '</div>' : ''));
     bindLang(openPhrases);
     $$('#sheet-body [data-phr]').forEach(function (b) {
-      b.addEventListener('click', function () {
+      b.addEventListener('click', function (e) {
         var p = PHRASES[+b.dataset.phr];
+        if (e.target.closest('[data-say]')) { say(p.ko); return; }
         sheet('<div class="phr-big" lang="ko">' + esc(p.ko) + '</div>' + (lang !== 'ko' ? '<div class="phr-big-t">' + esc(p[lang]) + '</div>' : '') +
+          '<button class="btn say-big" data-say-now>' + t('say') + '</button>' +
+          '<div class="say-row"><button class="btn ghost" data-say-slow>' + t('sayAgain') + '</button><button class="btn ghost" data-say-stop>' + t('sayStop') + '</button></div>' +
+          '<div class="note">' + t('sayTip') + '</div>' +
           '<button class="btn ghost tg-again" data-phr-back>' + t('back') + '</button>');
-        $('#sheet-body [data-phr-back]').addEventListener('click', openPhrases);
+        $('#sheet-body [data-say-now]').addEventListener('click', function () { say(p.ko, 0.9); });
+        $('#sheet-body [data-say-slow]').addEventListener('click', function () { say(p.ko, 0.65); });
+        $('#sheet-body [data-say-stop]').addEventListener('click', function () { try { speechSynthesis.cancel(); } catch (e) {} });
+        $('#sheet-body [data-phr-back]').addEventListener('click', function () { try { speechSynthesis.cancel(); } catch (e) {} openPhrases(); });
       });
     });
   }

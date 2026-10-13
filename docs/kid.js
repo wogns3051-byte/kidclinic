@@ -552,6 +552,12 @@
     return list.sort(function (a, b) { return a.s - b.s; });
   }
   function done(kid) { return load('kiddone:' + kid.id, {}); }
+  // 오늘의 우리아이 카드용: 지금 할 때인데 아직 체크 안 한 접종·검진
+  K.schedNow = function (kid) {
+    if (!kid || !kid.birth) return [];
+    var dn = done(kid), t = new Date(); t.setHours(0, 0, 0, 0);
+    return schedFor(kid).filter(function (x) { return !dn[x.id] && x.s <= t && x.e >= t; }).map(function (x) { return { n: x.n, c: x.c, e: x.e, icon: CAT[x.c].icon }; });
+  };
   function gcalLink(kid, x, who) {
     var e1 = new Date(x.e.getTime() + 86400000);
     var f = function (d) { return ymd(d).replace(/-/g, ''); };
@@ -903,6 +909,7 @@
     ['med', 'care', 'card', 'sched', 'grow'].forEach(function (x) { var el = $('#kid-' + x); if (el) el.hidden = k !== x; });
     $('#benefit-body').hidden = k !== 'bn';
     renderBar();
+    if (K.renderToday) setTimeout(K.renderToday, 0);
     if (k === 'med') renderMed(); else if (k === 'care') { if (K.renderCare) K.renderCare(); } else if (k === 'card') renderCard(); else if (k === 'sched') renderSched(); else if (k === 'grow') renderGrow(); else K.loadBenefit();
   }
   $$('#kid-seg button').forEach(function (b) { b.addEventListener('click', function () { showPane(b.dataset.k); }); });

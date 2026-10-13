@@ -166,6 +166,34 @@
     try { var k = K.curKid(); if (k && k.hospital) names[k.hospital] = 1; visits(k).forEach(function (v) { if (v.hosp) names[v.hosp] = 1; }); } catch (e) {}
     return Object.keys(names).slice(0, 30);
   }
+  // ───── 💰 실손보험 청구 체크 ─────
+  var CLAIM_YEARS = 3; // 보험금 청구권 소멸시효: 진료일로부터 3년
+  function won(n) { return Number(n || 0).toLocaleString('ko-KR') + '원'; }
+  function claimable(v) { return (v.cost || v.pcost) && !v.claim; }
+  function claimDeadline(v) { var d = new Date(v.d + 'T00:00:00'); d.setFullYear(d.getFullYear() + CLAIM_YEARS); return d; }
+  function claimLine(v) {
+    if (!v.cost && !v.pcost) return '';
+    var sum = (+v.cost || 0) + (+v.pcost || 0);
+    if (v.claim === 'done') return '<div class="vis-claim ok">💰 ' + won(sum) + ' · 실손 청구 완료</div>';
+    if (v.claim === 'skip') return '<div class="vis-claim">💰 ' + won(sum) + ' · 청구 안 함</div>';
+    var left = Math.ceil((claimDeadline(v) - today0()) / 86400000);
+    return '<div class="vis-claim todo">💰 ' + won(sum) + ' · <b>실손 청구 전</b>' + (left < 90 ? ' · 청구 기한 ' + Math.max(0, left) + '일 남음' : '') +
+      ' <a href="#" data-claim-done="' + v.id + '" data-v="done">청구했어요</a> · <a href="#" data-claim-done="' + v.id + '" data-v="skip">안 해요</a></div>';
+  }
+  function claimBox(l) {
+    var todo = l.filter(claimable);
+    if (!todo.length && !l.some(function (v) { return v.cost || v.pcost; })) return '';
+    var sum = todo.reduce(function (s, v) { return s + (+v.cost || 0) + (+v.pcost || 0); }, 0);
+    return '<details class="claim-box' + (todo.length ? ' todo' : '') + '"><summary>' + (todo.length ? '💰 실손 청구 안 한 진료 <b>' + todo.length + '건 · ' + won(sum) + '</b>' : '💰 실손 청구할 진료가 없어요') + '</summary>' +
+      '<div class="claim-guide">' +
+        '<div><b>📱 서류 없이 청구</b> 보험개발원 「실손24」 앱·누리집에서, 참여한 병원·약국 진료비는 서류를 떼지 않고 보험사로 보낼 수 있어요. 2025년 10월부터 동네 의원·약국까지 넓어졌어요.</div>' +
+        '<div><b>🧾 서류로 청구</b> 보통 <b>진료비 영수증 + 진료비 세부내역서</b>, 약값은 <b>약제비 영수증 + 처방전</b>을 사진으로 보험사 앱에 올려요. 금액·보험사마다 필요한 서류가 달라서 가입한 보험사 앱에서 꼭 확인하세요.</div>' +
+        '<div><b>⏳ 청구 기한</b> 진료일로부터 3년 안에 청구해야 해요. 지나면 받을 수 없어요.</div>' +
+        '<div class="claim-links"><a class="btn ghost" href="https://play.google.com/store/search?q=%EC%8B%A4%EC%86%9024&c=apps" target="_blank" rel="noopener">실손24 앱 (플레이스토어)</a><a class="btn ghost" href="https://apps.apple.com/kr/app/id6553966660" target="_blank" rel="noopener">실손24 앱 (앱스토어)</a></div>' +
+        '<div class="muted-s">이 기능은 청구했는지 기억하기 위한 메모예요. 보험금 지급 여부와 금액은 가입한 보험 약관에 따라 달라요.</div>' +
+      '</div></details>';
+  }
+  K.claimTodo = function (kid) { return visits(kid).filter(claimable); };
   function renderVisit(kid) {
     var l = visits(kid), t0 = ymd(today0());
     var e = visEdit && visEdit !== 'new' ? l.filter(function (v) { return v.id === visEdit; })[0] || {} : {};
@@ -176,11 +204,14 @@
       '<label>병원<input id="v-h" list="v-hl" maxlength="40" value="' + esc(e.hosp || '') + '" placeholder="예: ○○소아청소년과"><datalist id="v-hl">' + hospNames().map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist></label>' +
       '<label>진단·들은 말<input id="v-diag" maxlength="60" value="' + esc(e.diag || '') + '" placeholder="예: 중이염(오른쪽), 목감기"></label>' +
       '<label>처방약<textarea id="v-rx" rows="2" maxlength="300" placeholder="예: 항생제 시럽 5mL 하루 3번 5일">' + esc(e.rx || '') + '</textarea></label>' +
-      '<label>메모<input id="v-memo" maxlength="80" value="' + esc(e.memo || '') + '" placeholder="예: 열 3일 넘으면 다시 오라고 함, 진료비 4,500원"></label>' +
+      '<label>메모<input id="v-memo" maxlength="80" value="' + esc(e.memo || '') + '" placeholder="예: 열 3일 넘으면 다시 오라고 함"></label>' +
+      '<div class="g-two"><label>병원 진료비(원)<input type="number" id="v-cost" min="0" inputmode="numeric" value="' + esc(e.cost || '') + '" placeholder="예: 4500"></label><label>약값(원)<input type="number" id="v-pcost" min="0" inputmode="numeric" value="' + esc(e.pcost || '') + '" placeholder="예: 3200"></label></div>' +
+      '<div class="f-types"><span>실손보험 청구</span>' + [['', '아직 안 함'], ['done', '청구했어요'], ['skip', '청구 안 해요']].map(function (c) { return '<button class="chip' + ((e.claim || '') === c[0] ? ' on' : '') + '" data-vclaim="' + c[0] + '">' + c[1] + '</button>'; }).join('') + '</div>' +
       '<div class="actions"><button class="btn" id="v-save">' + (visEdit && visEdit !== 'new' ? '고치기' : '저장') + '</button>' + (visEdit ? '<button class="btn ghost" id="v-cancel">취소</button>' : '') + '</div></div>';
     var next = l.filter(function (v) { return v.next && v.next >= t0; }).sort(function (a, b) { return a.next < b.next ? -1 : 1; })[0];
     return '<div class="care-intro">언제, 어느 병원에서, 무슨 진단과 약을 받았는지 쌓아 두세요. "지난번에 무슨 항생제 먹었지?"가 바로 찾아져요. 📷 약봉투 사진으로 넣으면 처방약도 자동으로 적혀요.</div>' +
       '<div class="vis-top"><button class="btn" id="v-new">+ 진료 기록 쓰기</button><button class="btn soft" data-scan>📷 약봉투 사진으로</button></div>' +
+      claimBox(l) +
       (next ? '<div class="vis-next">📅 다음 진료 <b>' + next.next.slice(5).replace('-', '/') + '</b> · ' + esc(next.hosp || '') + ' <a href="#" data-vis-cal="' + next.id + '">캘린더에 넣기</a></div>' : '') +
       (visEdit ? form : '') +
       (l.length > 3 ? '<input class="vis-q" id="v-q" placeholder="🔍 찾기 (병원·진단·약 이름)" value="' + esc(visQ) + '">' : '') +
@@ -188,16 +219,23 @@
         return '<li><div class="vis-d">' + v.d.slice(2).replace(/-/g, '.') + '</div><div class="vis-b"><b>' + esc(v.hosp || '병원') + '</b>' + (v.diag ? '<div class="vis-diag">' + esc(v.diag) + '</div>' : '') +
           (v.rx ? '<div class="vis-rx">💊 ' + esc(v.rx).replace(/\n/g, '<br>') + '</div>' : '') + (v.memo ? '<div class="vis-memo">' + esc(v.memo) + '</div>' : '') +
           (v.next ? '<div class="vis-memo">다음 진료 ' + v.next.slice(5).replace('-', '/') + '</div>' : '') +
+          claimLine(v) +
           '<div class="vis-act"><a href="#" data-vis-edit="' + v.id + '">고치기</a> · <a href="#" data-vis-del="' + v.id + '">지우기</a></div></div></li>';
       }).join('') + '</ul>' : (l.length ? '<div class="kid-empty small">찾는 기록이 없어요</div>' : '<div class="kid-empty small">아직 진료 기록이 없어요</div>')) +
       (l.length ? '<div class="actions pad"><button class="btn ghost" id="v-share">📤 진료 기록 보내기</button></div>' : '');
   }
   function bindVisit(kid) {
+    $$('#kid-care [data-vclaim]').forEach(function (b) { b.addEventListener('click', function () { $$('#kid-care [data-vclaim]').forEach(function (x) { x.classList.toggle('on', x === b); }); }); });
+    $$('#kid-care [data-claim-done]').forEach(function (b) {
+      b.addEventListener('click', function (e) { e.preventDefault(); var l = visits(kid).map(function (x) { if (x.id === b.dataset.claimDone) x.claim = b.dataset.v; return x; }); visSave(kid, l); toast(b.dataset.v === 'done' ? '청구 완료로 표시했어요' : '청구 안 함으로 표시했어요'); render(); });
+    });
     var nb = $('#v-new'); if (nb) nb.addEventListener('click', function () { visEdit = 'new'; render(); var f = $('#v-h'); if (f) f.focus(); });
     var cb = $('#v-cancel'); if (cb) cb.addEventListener('click', function () { visEdit = null; render(); });
     var sb = $('#v-save');
     if (sb) sb.addEventListener('click', function () {
-      var v = { d: $('#v-d').value || ymd(today0()), next: $('#v-next').value || '', hosp: $('#v-h').value.trim(), diag: $('#v-diag').value.trim(), rx: $('#v-rx').value.trim(), memo: $('#v-memo').value.trim() };
+      var cl = $('#kid-care [data-vclaim].on');
+      var v = { d: $('#v-d').value || ymd(today0()), next: $('#v-next').value || '', hosp: $('#v-h').value.trim(), diag: $('#v-diag').value.trim(), rx: $('#v-rx').value.trim(), memo: $('#v-memo').value.trim(),
+        cost: Math.max(0, parseInt($('#v-cost').value, 10) || 0) || '', pcost: Math.max(0, parseInt($('#v-pcost').value, 10) || 0) || '', claim: cl ? cl.dataset.vclaim : '' };
       if (!v.hosp && !v.diag && !v.rx) { toast('병원·진단·처방약 중 하나는 적어 주세요'); return; }
       var l = visits(kid);
       if (visEdit && visEdit !== 'new') { l = l.map(function (x) { return x.id === visEdit ? Object.assign(x, v) : x; }); }
@@ -217,7 +255,7 @@
     if (sh) sh.addEventListener('click', function () {
       if (!K.confirmShare('진료 기록')) return;
       K.shareText(kid.name + ' 진료 기록', '[' + kid.name + ' 진료 기록]\n' + visits(kid).slice(0, 10).map(function (v) {
-        return v.d.replace(/-/g, '.') + ' ' + (v.hosp || '') + (v.diag ? '\n  진단: ' + v.diag : '') + (v.rx ? '\n  약: ' + v.rx.replace(/\n/g, ', ') : '');
+        return v.d.replace(/-/g, '.') + ' ' + (v.hosp || '') + (v.diag ? '\n  진단: ' + v.diag : '') + (v.rx ? '\n  약: ' + v.rx.replace(/\n/g, ', ') : '') + (v.cost || v.pcost ? '\n  진료비 ' + won((+v.cost || 0) + (+v.pcost || 0)) : '');
       }).join('\n') + '\n\n- 아이아플때 앱');
     });
   }
@@ -370,8 +408,10 @@
       if (open === 'sum') bindSum(kid); else if (open === 'rx') bindRx(kid); else if (open === 'visit') bindVisit(kid); else if (open === 'form') { bindForm(kid); formPrefill = null; } else bindDis();
     }
     $$('#kid-care [data-care]').forEach(function (b) { b.addEventListener('click', function () { open = b.dataset.care; save('careOpen', open); render(); }); });
+    if (K.renderToday) K.renderToday();
   }
-  K.renderCare = render;
+  K.renderCare = function () { render(); if (K.renderToday) K.renderToday(); };
+  K.visits = visits; K.rxList = rxList; K.rxActive = rxActive; K.rxSave = rxSave; K.SLOTS = SLOTS;
   K.careOpen = function (k) { open = k; save('careOpen', k); };
   K.rxAdd = function (kid, x) { var l = rxList(kid); x.id = uid(); x.c = {}; l.push(x); rxSave(kid, l); };
 })();
@@ -454,4 +494,94 @@
     if (b) b.addEventListener('click', function () { if (K.careOpen) K.careOpen('dis'); if (K.show) K.show('benefit'); if (K.showPane) K.showPane('care'); });
     var t = box.querySelector('[data-triage]'); if (t) t.addEventListener('click', function () { if (K.openTriage) K.openTriage(); });
   }).catch(function () {});
+})();
+
+/* 🌤 오늘의 우리아이 (지역 탭 맨 위) — 처방약 남은 칸, 해열제 간격, 다음 진료, 지금 할 접종, 실손 청구 */
+(function () {
+  'use strict';
+  var K = window.KC; if (!K || !K.kids) return;
+  var box = document.getElementById('today-card'); if (!box) return;
+  var esc = K.esc, load = K.load, save = K.save;
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function ymd(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function hm(t) { var d = new Date(t); return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+  function dayWord(ymdStr) {
+    var t = new Date(); t.setHours(0, 0, 0, 0);
+    var d = new Date(ymdStr + 'T00:00:00'), diff = Math.round((d - t) / 86400000);
+    return diff === 0 ? '오늘' : diff === 1 ? '내일' : diff === 2 ? '모레' : (d.getMonth() + 1) + '/' + d.getDate() + '(' + '일월화수목금토'[d.getDay()] + ')';
+  }
+  var GAP = { acet: 4, ibu: 6 }, DN = { acet: '아세트아미노펜', ibu: '이부프로펜 계열' };
+  function linesFor(kid) {
+    var out = [], now = Date.now(), today = ymd(new Date());
+    // 처방약: 오늘 남은 칸 (눌러서 바로 체크)
+    (K.rxList ? K.rxList(kid) : []).filter(function (x) { return K.rxActive(x) && x.start <= today; }).forEach(function (x) {
+      var left = x.slots.filter(function (si) { return !(x.c && x.c[today + '|' + si]); });
+      out.push({ go: 'rx', h: '<span class="td-ic">💊</span><div><b>' + esc(x.name) + '</b> ' + (left.length
+        ? left.map(function (si) { return '<button class="td-slot" data-td-rx="' + x.id + '" data-td-kid="' + kid.id + '" data-k="' + today + '|' + si + '">' + K.SLOTS[si] + '</button>'; }).join('') + '<small>먹였으면 눌러서 체크</small>'
+        : '<span class="td-ok">오늘 다 먹었어요 ✓</span>') + '</div>' });
+    });
+    // 해열제 간격 · 최근 체온
+    var l = K.kidLogs ? K.kidLogs(kid.id) : [];
+    ['acet', 'ibu'].forEach(function (k) {
+      var last = l.filter(function (x) { return x.type === k; }).sort(function (a, b) { return b.t - a.t; })[0];
+      if (last && now - last.t < 24 * 3600000) {
+        var next = last.t + GAP[k] * 3600000;
+        if (next > now) out.push({ go: 'med', h: '<span class="td-ic">⏱</span><div>' + DN[k] + ' 다음은 <b>' + hm(next) + '</b> 이후<small>마지막 ' + hm(last.t) + '</small></div>' });
+      }
+    });
+    var lt = l.filter(function (x) { return x.type === 'temp'; }).sort(function (a, b) { return b.t - a.t; })[0];
+    if (lt && now - lt.t < 12 * 3600000 && lt.v >= 37.5) out.push({ go: 'med', h: '<span class="td-ic">🌡</span><div>마지막 체온 <b class="' + (lt.v >= 38 ? 'hot' : '') + '">' + lt.v.toFixed(1) + '℃</b><small>' + Math.max(1, Math.round((now - lt.t) / 3600000)) + '시간 전 · 다시 재면 기록해 주세요</small></div>' });
+    // 다음 진료 (7일 안)
+    var vs = K.visits ? K.visits(kid) : [];
+    var nv = vs.filter(function (v) { return v.next && v.next >= today; }).sort(function (a, b) { return a.next < b.next ? -1 : 1; })[0];
+    if (nv && (new Date(nv.next + 'T00:00:00') - new Date(today + 'T00:00:00')) <= 7 * 86400000) out.push({ go: 'visit', h: '<span class="td-ic">📅</span><div>다음 진료 <b>' + dayWord(nv.next) + '</b><small>' + esc(nv.hosp || '') + (nv.diag ? ' · ' + esc(nv.diag) : '') + '</small></div>' });
+    // 지금 할 접종·검진
+    (K.schedNow ? K.schedNow(kid) : []).slice(0, 2).forEach(function (x) {
+      out.push({ go: 'sched', h: '<span class="td-ic">' + x.icon + '</span><div><b>' + esc(x.n) + '</b> 지금 할 때<small>' + (x.e.getMonth() + 1) + '/' + x.e.getDate() + '까지</small></div>' });
+    });
+    // 실손 청구 안 한 진료
+    var cl = K.claimTodo ? K.claimTodo(kid) : [];
+    if (cl.length) {
+      var sum = cl.reduce(function (s, v) { return s + (+v.cost || 0) + (+v.pcost || 0); }, 0);
+      out.push({ go: 'visit', h: '<span class="td-ic">💰</span><div>실손 청구 안 한 진료 <b>' + cl.length + '건</b><small>' + sum.toLocaleString('ko-KR') + '원 · 진료일로부터 3년 안에 청구</small></div>' });
+    }
+    return out;
+  }
+  function render() {
+    var ks = K.kids().list || [];
+    if (!ks.length) { box.hidden = true; return; }
+    var h = new Date().getHours();
+    var hi = h < 5 ? '늦은 밤이에요, 고생 많아요 🌙' : h < 11 ? '좋은 아침이에요 ☀️' : h < 17 ? '오늘도 힘내요 🌤' : h < 21 ? '저녁이에요, 오늘 하루도 수고했어요' : '편안한 밤 되세요 🌙';
+    var blocks = ks.slice(0, 3).map(function (kid) {
+      var ls = linesFor(kid);
+      return '<div class="td-kid">' + (ks.length > 1 ? '<div class="td-name">' + esc(kid.name || '아이') + '</div>' : '') +
+        (ls.length ? (function () {
+          var row = function (x) { return '<div class="td-row" data-td-go="' + x.go + '" data-td-kid="' + kid.id + '">' + x.h + '</div>'; };
+          var max = ks.length > 1 ? 2 : 3;
+          return ls.slice(0, max).map(row).join('') + (ls.length > max ? '<details class="td-more"><summary>' + (ls.length - max) + '개 더 보기</summary>' + ls.slice(max).map(row).join('') + '</details>' : '');
+        })() : '<div class="td-calm">오늘은 챙길 게 없어요 😊</div>') + '</div>';
+    }).join('');
+    box.hidden = false; box.className = 'today-card';
+    box.innerHTML = '<div class="td-h"><b>🌤 오늘의 ' + (ks.length > 1 ? '우리아이' : esc(ks[0].name || '우리아이')) + '</b><span>' + hi + '</span></div>' + blocks +
+      '<div class="td-priv">🔒 이 휴대폰에만 저장된 기록으로 만들어요</div>';
+  }
+  box.addEventListener('click', function (e) {
+    var sl = e.target.closest('[data-td-rx]');
+    if (sl) {
+      e.stopPropagation();
+      var kid = (K.kids().list || []).filter(function (k) { return k.id === sl.dataset.tdKid; })[0]; if (!kid) return;
+      var l = K.rxList(kid), x = l.filter(function (y) { return y.id === sl.dataset.tdRx; })[0]; if (!x) return;
+      x.c = x.c || {}; x.c[sl.dataset.k] = Date.now(); K.rxSave(kid, l);
+      K.toast(K.SLOTS[+sl.dataset.k.split('|')[1]] + ' 약 체크했어요 ✓'); render(); return;
+    }
+    var row = e.target.closest('[data-td-go]'); if (!row) return;
+    var k = K.kids(); if (row.dataset.tdKid && k.cur !== row.dataset.tdKid) { k.cur = row.dataset.tdKid; K.saveKids(k); }
+    var go = row.dataset.tdGo;
+    if (go === 'rx' || go === 'visit') { K.careOpen(go); K.show('benefit'); K.showPane('care'); }
+    else { K.show('benefit'); K.showPane(go); }
+  });
+  K.renderToday = render;
+  render();
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) render(); });
+  setInterval(render, 5 * 60000);
 })();
