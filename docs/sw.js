@@ -1,5 +1,5 @@
 // 오프라인 대비: 화면 파일은 저장해 두고, 자료(data/)는 항상 최신을 먼저 시도
-const CACHE = 'kidclinic-v27';
+const CACHE = 'kidclinic-v28';
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'growth-data.js', 'kid.js', 'care.js', 'scan.js', 'i18n.js', 'triage.js', 'config.js', 'privacy.html', 'manifest.webmanifest',
   'icons/icon-192.png', 'vendor/leaflet/leaflet.js', 'vendor/leaflet/leaflet.css'];
 self.addEventListener('install', (e) => {

@@ -932,30 +932,33 @@
   $('#ph-radius').addEventListener('change', function () { loadPharm(); });
 
   // ───── 혜택 ─────
-  var benefitLoaded = false;
+  var benefitLoaded = false, goAnchor = '';
+  function jumpAnchor() { if (!goAnchor) return; var el = document.getElementById(goAnchor); goAnchor = ''; if (el) setTimeout(function () { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60); }
   function loadBenefit() {
-    if (benefitLoaded) { renderLocal(); return; }
+    if (benefitLoaded) { renderLocal(); jumpAnchor(); return; }
     fetchJson(DATA_BASE + '/benefits.json?t=' + Math.floor(Date.now() / 86400000))
       .catch(function () { return fetchJson('./data/benefits.json'); })
       .then(function (b) {
         benefitLoaded = true;
         var html = '<div class="bn-notice">' + esc(b.notice) + ' <span>(' + esc(b.checked.replace('-', '.')) + ' 기준)</span></div>';
         b.sections.forEach(function (sec) {
-          html += '<h3 class="bn-h">' + esc(sec.title) + '</h3><ul class="list">';
+          html += '<h3 class="bn-h"' + (sec.id ? ' id="bn-' + esc(sec.id) + '"' : '') + '>' + esc(sec.title) + '</h3>' + (sec.note ? '<div class="bn-sub">' + esc(sec.note) + '</div>' : '') + '<ul class="list">';
           sec.items.forEach(function (it, i) {
             html += '<li class="bn-card"><div class="bn-title">' + esc(it.title) + '</div>' +
               (it.big ? '<div class="bn-big">' + esc(it.big) + '</div>' : '') +
               (it.who ? '<div class="bn-who">대상 · ' + esc(it.who) + '</div>' : '') +
               '<div class="bn-body">' + esc(it.body) + '</div>' +
               (it.link ? '<a class="btn ghost bn-btn" href="' + esc(it.link.url) + '" target="_blank" rel="noopener">' + esc(it.link.label) + ' ↗</a>' : '') +
-              (it.action ? '<button class="btn bn-btn" data-go-tab="' + esc(it.action.tab) + '" data-go-filter="' + esc(it.action.filter || '') + '">' + esc(it.action.label) + '</button>' : '') +
+              (it.action ? '<button class="btn bn-btn" data-go-tab="' + esc(it.action.tab) + '" data-go-filter="' + esc(it.action.filter || '') + '"' + (it.action.mode ? ' data-go-mode="' + esc(it.action.mode) + '"' : '') + (it.action.pane ? ' data-go-pane="' + esc(it.action.pane) + '"' : '') + '>' + esc(it.action.label) + '</button>' : '') +
               '</li>';
           });
           html += '</ul>';
+          if (sec.id === 'dental') html += '<div id="local-dent"><div class="bn-sub">지역을 고르면 우리 지역 보건소·시군구의 아이 치아 지원도 여기 모아 보여 드려요.</div></div>';
         });
         html += '<h3 class="bn-h">우리 지역 혜택</h3><div id="local-benefit"></div>';
         $('#benefit-body').innerHTML = html;
         renderLocal();
+        jumpAnchor();
       }).catch(function () { $('#benefit-body').innerHTML = '<div class="empty"><b>혜택 정보를 불러오지 못했어요</b>인터넷 연결을 확인해 주세요.</div>'; });
   }
   var lbCache = {};
@@ -975,12 +978,16 @@
       var mine = (r.sggu && d.sg && d.sg[r.sggu]) || [], wide = d.all || [];
       if (!mine.length && !wide.length) return fallback('이 지역의 출산·육아 혜택을 아직 찾지 못했어요. 복지로에서 지역을 골라 확인해 보세요.');
       var card = function (x) {
-        return '<li class="bn-card lb"><div class="bn-title">' + esc(x.n) + '</div>' + (x.c ? '<div class="bn-big">' + esc(x.c) + '</div>' : '') +
+        return '<li class="bn-card lb"><div class="bn-title">' + (x.d ? '<span class="lb-dent">🦷 치아</span>' : '') + esc(x.n) + '</div>' + (x.c ? '<div class="bn-big">' + esc(x.c) + '</div>' : '') +
           (x.t ? '<div class="bn-who">대상 · ' + esc(x.t) + '</div>' : '') + (x.how ? '<div class="bn-body">신청 · ' + esc(x.how) + '</div>' : '') +
           '<div class="lb-ag">' + esc(x.ag || '') + (x.tel ? ' · ' + esc(x.tel) : '') + '</div>' +
           (x.u ? '<a class="btn ghost bn-btn" href="' + esc(x.u) + '" target="_blank" rel="noopener">자세히 · 신청 ↗</a>' : '') + '</li>';
       };
       var more = function (arr, id) { return arr.length > 5 ? '<details class="lb-more"><summary>' + (arr.length - 5) + '개 더 보기</summary><ul class="list">' + arr.slice(5).map(card).join('') + '</ul></details>' : ''; };
+      var dent = mine.concat(wide).filter(function (x) { return x.d; });
+      var dentBox = $('#local-dent');
+      if (dentBox) dentBox.innerHTML = dent.length ? '<div class="lb-h">📍 ' + esc(name) + ' 아이 치아 지원 (' + dent.length + ')</div><ul class="list">' + dent.slice(0, 5).map(card).join('') + '</ul>' + more(dent) :
+        '<div class="bn-sub">' + esc(name) + '에서 따로 찾은 아이 치아 지원은 아직 없어요. 보건소 구강보건실 운영 여부는 관할 보건소에 물어보세요.</div>';
       box.innerHTML = (mine.length ? '<div class="lb-h">📍 ' + esc(name) + ' (' + mine.length + ')</div><ul class="list">' + mine.slice(0, 5).map(card).join('') + '</ul>' + more(mine) : '') +
         (wide.length ? '<div class="lb-h">🗺 ' + esc(sidoName) + ' 전체 (' + wide.length + ')</div><ul class="list">' + wide.slice(0, 5).map(card).join('') + '</ul>' + more(wide) : '') +
         '<div class="note pad">출처: 행정안전부 대한민국 공공서비스(혜택) 정보 (' + esc((d.at || '').slice(0, 10).replace(/-/g, '.')) + ' 받음). 지원 금액·조건은 바뀔 수 있으니 신청 전에 꼭 확인하세요.</div>';
@@ -995,8 +1002,11 @@
   document.addEventListener('click', function (e) {
     var b = e.target.closest && e.target.closest('[data-go-tab]');
     if (!b) return;
+    if (e.preventDefault) e.preventDefault();
     var tab = b.dataset.goTab, f = b.dataset.goFilter;
+    if (b.dataset.goMode && tab === 'region' && b.dataset.goMode !== regionMode) { regionMode = b.dataset.goMode; save('mode', regionMode); applyMode(); if (regionsReady) loadRegion(); }
     if (b.dataset.goPane) showOpt = { pane: b.dataset.goPane };
+    goAnchor = b.dataset.goAnchor || '';
     if (f) $$('.chips[data-for="' + tab + '"] .chip').forEach(function (c) { c.classList.toggle('on', c.dataset.f === f); });
     loaded[tab] = 0;
     show(tab);

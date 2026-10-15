@@ -1089,3 +1089,16 @@ html.daytime .brand-wrap .sub { color: rgba(255,255,255,.9); }
 .teeth li.done { opacity: .6; } .teeth li i { font-style: normal; color: var(--brand); }
 .teeth-n { padding: 8px 14px 12px; font-size: 12px; color: var(--muted); line-height: 1.5; }
 @media (prefers-color-scheme: dark) { .teeth li.now { background: #1B2A4A; } .teeth li.now em { color: #9CC8FF; } }
+/* 🦷 치과 정기검진 알림 */
+.dent-card{background:var(--card,#fff);border:1px solid var(--line,#eee);border-radius:16px;padding:14px;margin:10px 0}
+.dn-h{font-weight:700;margin-bottom:8px}
+.dn-row{display:flex;gap:8px;flex-wrap:wrap}
+.dn-row label{flex:1;min-width:130px;display:flex;flex-direction:column;font-size:13px;gap:4px;color:var(--muted)}
+.dn-row input,.dn-row select{font:inherit;font-size:15px;padding:8px;border:1px solid var(--line,#ddd);border-radius:10px;background:var(--card);color:inherit}
+.dn-next{margin:10px 0 6px;font-size:14px}
+.dn-late{color:#d33}.dn-soon{color:#e67e00}
+.dn-btns{display:flex;gap:6px;flex-wrap:wrap}.dn-btns .btn{flex:1;min-width:96px;white-space:nowrap;padding-left:8px;padding-right:8px}
+.dn-tips{margin:10px 0 6px;padding-left:18px;font-size:13px;line-height:1.55;color:var(--muted)}
+.dn-links{font-size:13px}
+.bn-sub{font-size:13px;color:var(--muted);margin:-2px 4px 8px;line-height:1.5}
+.lb-dent{display:inline-block;font-size:11px;background:#E0F3FF;color:#0a5b8a;border-radius:6px;padding:1px 6px;margin-right:6px;vertical-align:1px}

@@ -307,7 +307,7 @@
       $('#card-del').addEventListener('click', function () {
         if (!confirm(kid.name + '의 카드와 해열제·처방약·진료·일정·성장 기록을 모두 지울까요?')) return;
         var k = kids(); k.list = k.list.filter(function (x) { return x.id !== kid.id; }); k.cur = k.list[0] ? k.list[0].id : '';
-        saveKids(k); try { ['kidlog:', 'kiddone:', 'kidgrow:', 'kidrx:', 'kidvisit:'].forEach(function (p) { localStorage.removeItem(p + kid.id); }); } catch (e) {} editing = false; showPane('card');
+        saveKids(k); try { ['kidlog:', 'kiddone:', 'kidgrow:', 'kidrx:', 'kidvisit:', 'kiddent:'].forEach(function (p) { localStorage.removeItem(p + kid.id); }); } catch (e) {} editing = false; showPane('card');
       });
       return;
     }
@@ -557,7 +557,10 @@
   K.schedNow = function (kid) {
     if (!kid || !kid.birth) return [];
     var dn = done(kid), t = new Date(); t.setHours(0, 0, 0, 0);
-    return schedFor(kid).filter(function (x) { return !dn[x.id] && x.s <= t && x.e >= t; }).map(function (x) { return { n: x.n, c: x.c, e: x.e, icon: CAT[x.c].icon }; });
+    var out = schedFor(kid).filter(function (x) { return !dn[x.id] && x.s <= t && x.e >= t; }).map(function (x) { return { n: x.n, c: x.c, e: x.e, icon: CAT[x.c].icon }; });
+    var dd = K.dentDue(kid);
+    if (dd) out.unshift({ n: '치과 정기검진', c: 'oral', e: dd.next, icon: '🦷', txt: dd.days < 0 ? (-dd.days) + '일 지났어요' : dd.days ? dd.days + '일 남았어요' : '오늘이에요' });
+    return out;
   };
   function gcalLink(kid, x, who) {
     var e1 = new Date(x.e.getTime() + 86400000);
@@ -600,6 +603,87 @@
       return '<li class="' + st + '"><span>' + (t[0] >= 72 ? (t[0] / 12) + '~' + (t[1] / 12) + '세' : t[0] + '~' + t[1] + '개월') + '</span><b>' + t[2] + '</b>' + (st === 'now' ? '<em>지금쯤</em>' : st === 'done' ? '<i>✓</i>' : '') + '</li>';
     }).join('') + '</ul><div class="teeth-n">아이마다 몇 달씩 빠르거나 늦을 수 있어요. 첫돌이 지나도 이가 안 나면 치과에서 확인해 보세요. 이가 나면 하루 두 번 쌀알 크기 불소치약으로 닦아 주세요. 지역 탭 위쪽 <b>🦷 아이 치과</b>에서 가까운 소아치과를 찾을 수 있어요.</div></details>';
   }
+  // ───── 🦷 치과 정기검진 주기 알림 ─────
+  // 마지막 치과 검진 날짜 + 주기(3·4·6개월)로 다음 검진일을 계산. 기록은 이 휴대폰(kiddent:<id>)에만 저장.
+  var DENT_EVERY = [3, 4, 6];
+  function dentInfo(kid) {
+    var d = load('kiddent:' + kid.id, {}), dn = done(kid), last = doneDate(d.last) || '';
+    ['dent1', 'oral1', 'oral2', 'oral3', 'oral4'].forEach(function (k) { var v = doneDate(dn[k]); if (v && v > last) last = v; });
+    var every = DENT_EVERY.indexOf(+d.every) >= 0 ? +d.every : 6;
+    var next = last ? addSpan(last, 'm' + every) : null;
+    return { last: last, every: every, next: next, on: !!d.on };
+  }
+  K.dentDue = function (kid) {
+    if (!kid || !kid.birth) return null;
+    var di = dentInfo(kid); if (!di.next) return null;
+    var t = new Date(); t.setHours(0, 0, 0, 0);
+    var days = Math.round((di.next - t) / 86400000);
+    return days <= 14 ? { days: days, next: di.next } : null;
+  };
+  // 나이에 맞는 치아 혜택 한 줄 안내 (자세한 건 혜택 탭)
+  function dentTips(m) {
+    var y = m / 12, out = [];
+    if (m < 72) out.push('영유아 구강검진은 18개월부터 만 5세까지 4번 무료예요 (위 일정에 있어요)');
+    if (y >= 5 && y < 19) out.push('충치 없는 영구 큰 어금니 <b>홈메우기(실란트)</b>는 만 18세까지 건강보험, 본인부담 10%');
+    if (y >= 5 && y <= 12) out.push('영구치 충치 치료 <b>광중합형 레진</b>은 만 12세까지 건강보험 적용');
+    if (y >= 6 && y < 13) out.push('초등학생은 <b>아동치과주치의</b> 시범사업 지역이면 학기마다 검진·예방진료를 적은 비용으로 받아요');
+    out.push('불소도포·실란트를 무료나 저렴하게 해 주는 <b>보건소 구강보건실</b>도 있어요 (지역마다 달라요)');
+    return out;
+  }
+  function dentCard(kid) {
+    var m = ageMonths(kid.birth);
+    if (m === null || m < 5) return '';
+    var di = dentInfo(kid), t = new Date(); t.setHours(0, 0, 0, 0);
+    var days = di.next ? Math.round((di.next - t) / 86400000) : null;
+    var st = days === null ? '' : days < 0 ? '<b class="dn-late">' + (-days) + '일 지났어요</b>' : days <= 14 ? '<b class="dn-soon">' + (days ? days + '일 남았어요' : '오늘이에요') + '</b>' : days + '일 뒤';
+    return '<div class="dent-card"><div class="dn-h">🦷 치과 정기검진 알림</div>' +
+      '<div class="dn-row"><label>마지막 치과 검진<input type="date" id="dn-last" value="' + di.last + '" max="' + ymd(t) + '"></label>' +
+      '<label>주기<select id="dn-every">' + DENT_EVERY.map(function (n) { return '<option value="' + n + '"' + (n === di.every ? ' selected' : '') + '>' + n + '개월마다</option>'; }).join('') + '</select></label></div>' +
+      (di.next ? '<div class="dn-next">다음 검진 <b>' + kdate(di.next) + '</b> · ' + st + '</div>' +
+        '<div class="dn-btns"><button class="btn" id="dn-ics">📅 반복 알림 넣기</button><button class="btn ghost" id="dn-gcal">구글 캘린더</button><button class="btn ghost" id="dn-today">오늘 다녀왔어요</button></div>' +
+        '<div class="cal-hint">' + di.every + '개월마다 반복되는 일정으로 들어가요. 검진일 일주일 전 아침 9시에 알림이 와요. 검진 날짜가 바뀌면 "오늘 다녀왔어요"를 누르고 다시 넣어 주세요.</div>'
+        : '<div class="dn-next">마지막 치과 검진 날짜를 넣으면 다음 검진일을 알려 드려요. 대한소아치과학회는 첫돌 무렵 첫 검진, 그 뒤 3~6개월마다 정기검진을 권해요.</div>') +
+      '<ul class="dn-tips">' + dentTips(m).map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ul>' +
+      '<div class="dn-links"><a href="#" data-go-tab="benefit" data-go-pane="bn" data-go-anchor="bn-dental">🎁 아이 치아 혜택 자세히</a> · <a href="#" data-go-tab="region" data-go-mode="dental">🦷 가까운 소아치과 찾기</a></div></div>';
+  }
+  function dentIcs(kid, di, who) {
+    var f = function (d) { return ymd(d).replace(/-/g, ''); };
+    var stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
+    var lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//aiapulttae//dental//KO', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+      'BEGIN:VEVENT', 'UID:' + kid.id + '-dental@aiapulttae', 'DTSTAMP:' + stamp,
+      'DTSTART;VALUE=DATE:' + f(di.next), 'DTEND;VALUE=DATE:' + f(new Date(di.next.getTime() + 86400000)),
+      'RRULE:FREQ=MONTHLY;INTERVAL=' + di.every + ';COUNT=12',
+      'SUMMARY:' + icsEsc('[' + who + '] 🦷 치과 정기검진'),
+      'DESCRIPTION:' + icsEsc(di.every + '개월마다 치과 정기검진·불소 도포를 상담하세요. 실란트(만 18세까지 본인부담 10%)·레진(만 12세까지) 건강보험 적용도 물어보세요.\n- 아이아플때'),
+      'TRANSP:TRANSPARENT',
+      'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + icsEsc(who + ' 치과 정기검진 일주일 전'), 'TRIGGER:-P6DT15H', 'END:VALARM',
+      'END:VEVENT', 'END:VCALENDAR'];
+    var blob = new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+    var url = URL.createObjectURL(blob), a = document.createElement('a');
+    a.href = url; a.download = 'aiapulttae-dental.ics';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
+    toast('반복 알림 파일을 만들었어요. 열어서 캘린더에 추가하세요');
+  }
+  function bindDent(kid) {
+    var lastI = $('#dn-last'); if (!lastI) return;
+    var put = function (k, v) { var d = load('kiddent:' + kid.id, {}); d[k] = v; save('kiddent:' + kid.id, d); renderSched(); };
+    lastI.addEventListener('change', function () {
+      var v = lastI.value; if (v && new Date(v + 'T00:00:00') > new Date()) { toast('오늘 이후 날짜는 넣을 수 없어요'); return; }
+      put('last', v);
+    });
+    $('#dn-every').addEventListener('change', function () { put('every', +$('#dn-every').value); });
+    var td = $('#dn-today'); if (td) td.addEventListener('click', function () { put('last', ymd(new Date())); toast('🦷 오늘 검진으로 기록했어요. 다음 검진일을 다시 계산했어요'); });
+    var ic = $('#dn-ics'); if (ic) ic.addEventListener('click', function () { var who = askCalName(kid); if (who) dentIcs(kid, dentInfo(kid), who); });
+    var gc = $('#dn-gcal'); if (gc) gc.addEventListener('click', function () {
+      var who = askCalName(kid); if (!who) return;
+      var di = dentInfo(kid), f = function (d) { return ymd(d).replace(/-/g, ''); };
+      window.open('https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent('[' + who + '] 🦷 치과 정기검진') +
+        '&dates=' + f(di.next) + '/' + f(new Date(di.next.getTime() + 86400000)) +
+        '&recur=' + encodeURIComponent('RRULE:FREQ=MONTHLY;INTERVAL=' + di.every + ';COUNT=12') +
+        '&details=' + encodeURIComponent(di.every + '개월마다 치과 정기검진·불소 도포 상담\n- 아이아플때'), '_blank', 'noopener');
+    });
+  }
   var showAllSched = false;
   function renderSched() {
     var box = $('#kid-sched'); if (!box) return;
@@ -639,7 +723,7 @@
     var sec = function (title, arr, cls) { return arr.length ? '<h3 class="bn-h">' + title + '</h3><ul class="sc-list">' + arr.map(function (x) { return item(x, cls); }).join('') + '</ul>' : ''; };
     box.innerHTML = kidPicker(kid, 'sched') +
       '<div class="sc-head">' + esc(kid.name) + ' · ' + ageText(kid.birth) + '</div>' +
-      stickerBoard(all, dn, today) + teethCard(kid) +
+      stickerBoard(all, dn, today) + teethCard(kid) + dentCard(kid) +
       '<div class="cal-box"><button class="btn" id="ics-btn">📅 남은 일정 캘린더에 한 번에 넣기</button>' +
       '<div class="cal-hint">아이폰·삼성 캘린더에 들어가고, 각 일정 시작 하루 전 아침 9시에 알림이 와요. 구글 캘린더는 아래 일정마다 "구글 캘린더에 추가"를 눌러 주세요.</div></div>' +
       (function () {
@@ -684,6 +768,7 @@
         d2[a.dataset.redate] = v === 'x' ? 1 : v; save('kiddone:' + kid.id, d2); renderSched();
       });
     });
+    bindDent(kid);
     var mb = $('#more-sc'); if (mb) mb.addEventListener('click', function () { showAllSched = true; renderSched(); });
     var ms = $('#missed-btn'); if (ms) ms.addEventListener('click', function () { showAllSched = true; renderSched(); var h = $$('#kid-sched .bn-h'); if (h.length) h[h.length - 1].scrollIntoView({ behavior: 'smooth' }); });
     $$('#kid-sched [data-gcal]').forEach(function (a) {
@@ -751,7 +836,7 @@
 
   // ───── 💾 백업 내보내기·불러오기 ─────
   // 휴대폰에만 저장하는 대신, 이용자가 직접 파일로 옮길 수 있게 한다. (서버를 거치지 않음)
-  var BK_KEYS = /^(kids|kidlog:.+|kiddone:.+|kidgrow:.+|kidrx:.+|kidvisit:.+|lang|favs|hmemo|region|home|bigFont|kidPane)$/;
+  var BK_KEYS = /^(kids|kidlog:.+|kiddone:.+|kidgrow:.+|kidrx:.+|kidvisit:.+|kiddent:.+|lang|favs|hmemo|region|home|bigFont|kidPane)$/;
   function backupData() {
     var data = {};
     for (var i = 0; i < localStorage.length; i++) {

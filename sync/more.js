@@ -28,6 +28,8 @@ const SIDO_FULL = [
   [/^경상남도|^경남/, '380000'], [/^제주/, '390000'],
 ];
 const KID = /영유아|영아|유아|아동|어린이|아이|출산|출생|임신|임산부|산모|산후|신생아|육아|보육|양육|다자녀|소아|난임|돌봄|아기/;
+const DENT = /치과|구강|치아|불소|실란트|홈메우기|충치/;
+const SCHOOL = /초등|학생|청소년|학교/;
 const NOT_KID = /노인|어르신|경로|청년(?!.*(출산|육아))|대학생|장애인연금|기초연금|농업인|어업인|소상공인|퇴직/;
 
 async function getJson(url, opt) {
@@ -91,7 +93,9 @@ async function localBenefits(key, state, outDir, regions) {
     let kept = 0;
     for (const it of all) {
       const text = [it['서비스명'], it['서비스목적요약'], it['지원대상'], it['서비스분야']].join(' ');
-      if (!KID.test(String(it['서비스명'] || '') + ' ' + String(it['지원대상'] || ''))) continue;
+      const nameWho = String(it['서비스명'] || '') + ' ' + String(it['지원대상'] || '');
+      const dent = DENT.test(text);
+      if (!KID.test(nameWho) && !(dent && SCHOOL.test(nameWho))) continue; // 아이 치아 사업은 '초등학생'만 적힌 경우도 포함
       if (NOT_KID.test(String(it['서비스명'] || ''))) continue;
       const type = String(it['소관기관유형'] || '');
       if (type && !/지자체|지방|시|군|구|도/.test(type)) continue; // 중앙부처 혜택은 benefits.json 에서 따로 안내
@@ -103,7 +107,8 @@ async function localBenefits(key, state, outDir, regions) {
         v: Number(it['조회수'] || 0), f: cut(it['서비스분야'], 20),
       };
       if (!/^https?:\/\//.test(row.u)) row.u = '';
-      if (!/(?:출산|임신|산모|산후|신생아|난임)/.test(text) && !/(?:영유아|영아|유아|아동|어린이|보육|양육|육아|아이|아기|다자녀|소아|돌봄)/.test(text)) continue;
+      if (dent) row.d = 1;
+      if (!dent && !/(?:출산|임신|산모|산후|신생아|난임)/.test(text) && !/(?:영유아|영아|유아|아동|어린이|보육|양육|육아|아이|아기|다자녀|소아|돌봄)/.test(text)) continue;
       const o = (out[reg.sidoCd] = out[reg.sidoCd] || { all: [], sg: {} });
       if (reg.sg.length) reg.sg.forEach((c) => { (o.sg[c] = o.sg[c] || []).push(row); });
       else o.all.push(row);
@@ -199,4 +204,4 @@ async function epidemic(key, outDir) {
   if (ok || res.nat || res.flu) { fs.mkdirSync(outDir, { recursive: true }); fs.writeFileSync(out, JSON.stringify(res)); }
 }
 
-module.exports = { localBenefits, epidemic, mapRegion, notifiable, influenza, KID };
+module.exports = { localBenefits, epidemic, mapRegion, notifiable, influenza, KID, DENT };

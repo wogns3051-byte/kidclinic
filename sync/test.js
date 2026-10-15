@@ -85,6 +85,8 @@ const mock = http.createServer((req, res) => {
       { 서비스ID: '2', 서비스명: '경상북도 다자녀 지원', 서비스목적요약: '다자녀 가정', 지원대상: '도내 다자녀', 지원내용: '바우처', 소관기관명: '경상북도', 소관기관유형: '지자체', 조회수: '10' },
       { 서비스ID: '3', 서비스명: '어르신 교통비', 지원대상: '65세 이상', 소관기관명: '경상북도 김천시', 소관기관유형: '지자체', 조회수: '99' },
       { 서비스ID: '4', 서비스명: '부모급여', 지원대상: '영아 부모', 소관기관명: '보건복지부', 소관기관유형: '중앙행정기관', 조회수: '999' },
+      { 서비스ID: '6', 서비스명: '김천시 초등학생 치과주치의', 서비스목적요약: '구강검진 및 불소도포', 지원대상: '관내 초등학생', 소관기관명: '경상북도 김천시', 소관기관유형: '지자체', 조회수: '7' },
+      { 서비스ID: '7', 서비스명: '김천시 어르신 틀니 지원', 서비스목적요약: '치과 보철', 지원대상: '65세 이상', 소관기관명: '경상북도 김천시', 소관기관유형: '지자체', 조회수: '8' },
       { 서비스ID: '5', 서비스명: '중구 아동수당 추가', 지원대상: '아동', 소관기관명: '중구', 소관기관유형: '지자체', 조회수: '5' },
     ];
     return res.end(JSON.stringify({ currentCount: data.length, data, matchCount: data.length, page: 1, perPage: 1000, totalCount: data.length }));
@@ -171,6 +173,8 @@ const mock = http.createServer((req, res) => {
   ok(lb.sg['370100'] && lb.sg['370100'][0].n === '김천시 출산축하금' && lb.sg['370100'][0].u === 'https://www.gov.kr/x', '지역 혜택: 시·군·구별 출산·육아');
   ok(lb.all.length === 1 && lb.all[0].n === '경상북도 다자녀 지원', '지역 혜택: 도 전체');
   ok(!JSON.stringify(lb).includes('어르신') && !JSON.stringify(lb).includes('부모급여') && !JSON.stringify(lb).includes('중구'), '지역 혜택: 어르신·중앙부처·애매한 지역 제외');
+  ok(lb.sg['370100'].some((x) => x.n === '김천시 초등학생 치과주치의' && x.d === 1) && !lb.sg['370100'][0].d, '지역 혜택: 초등학생 치과 사업 포함·치아 표시');
+  ok(!JSON.stringify(lb).includes('틀니'), '지역 혜택: 어르신 치과 제외');
   ok(gov24Calls === 1, '지역 혜택은 7일에 한 번만 받음');
   const epi = JSON.parse(fs.readFileSync(path.join(root, 'docs', 'data', 'epi.json'), 'utf8'));
   const chick = epi.nat.items.find((x) => x.n === '수두');

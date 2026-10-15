@@ -537,7 +537,7 @@
     if (nv && (new Date(nv.next + 'T00:00:00') - new Date(today + 'T00:00:00')) <= 7 * 86400000) out.push({ go: 'visit', h: '<span class="td-ic">📅</span><div>다음 진료 <b>' + dayWord(nv.next) + '</b><small>' + esc(nv.hosp || '') + (nv.diag ? ' · ' + esc(nv.diag) : '') + '</small></div>' });
     // 지금 할 접종·검진
     (K.schedNow ? K.schedNow(kid) : []).slice(0, 2).forEach(function (x) {
-      out.push({ go: 'sched', h: '<span class="td-ic">' + x.icon + '</span><div><b>' + esc(x.n) + '</b> 지금 할 때<small>' + (x.e.getMonth() + 1) + '/' + x.e.getDate() + '까지</small></div>' });
+      out.push({ go: 'sched', h: '<span class="td-ic">' + x.icon + '</span><div><b>' + esc(x.n) + '</b> ' + (x.txt ? '' : '지금 할 때') + '<small>' + (x.txt ? (x.e.getMonth() + 1) + '/' + x.e.getDate() + ' · ' + x.txt : (x.e.getMonth() + 1) + '/' + x.e.getDate() + '까지') + '</small></div>' });
     });
     // 실손 청구 안 한 진료
     var cl = K.claimTodo ? K.claimTodo(kid) : [];
