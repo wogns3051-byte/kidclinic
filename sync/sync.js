@@ -23,6 +23,7 @@ const CFG = {
   sdrPerRun: Number(process.env.SDR_DAILY_LIMIT || 6000),       // 전체 (소아과·병원급 먼저), 90일마다
   extraMaxAgeDays: 90,
   deptCode: process.env.DEPT_CODE || '11', // 11 = 소아청소년과
+  dentCode: process.env.DENT_CODE || '53', // 53 = 소아치과
   detailPerRun: Number(process.env.DETAIL_DAILY_LIMIT || 9000), // 심평원 일일 한도 10,000건
   detailMaxAgeDays: Number(process.env.DETAIL_MAX_AGE_DAYS || 30),
   root: process.env.KIDCLINIC_ROOT || ROOT,
@@ -42,6 +43,7 @@ const SIDO = [
   ['390000', '제주'],
 ];
 const PEDS_NAME = /소아|아동|어린이|키즈|kids|베이비|baby/i;
+const DENT_NAME = /소아|아동|어린이|키즈|kids|베이비|baby|유아/i;
 const isPeds = (h) => (PEDS_NAME.test(h.name) || /상급종합|종합병원|^병원$/.test(h.type) ? 1 : 0);
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -219,25 +221,21 @@ function pedsSpecialists(items) {
   return n;
 }
 
-// ───── 실행 ─────
-async function main() {
-  if (!CFG.key) throw new Error('HIRA_SERVICE_KEY 가 없습니다. (GitHub: Settings > Secrets and variables > Actions)');
-  const state = readJson(P.state, { listUpdatedAt: null, items: {} });
-
-  // 1) 전국 목록
+// ───── 목록 받기 (진료과목 코드별) ─────
+async function fetchList(dept, items, label, dental) {
   const seen = new Set();
-  let listOk = 0;
+  let ok = 0;
   for (const [sidoCd, sidoNm] of SIDO) {
     let page = 1, got = 0, total = 0;
     try {
       do {
-        const r = await callApi(CFG.listUrl, { pageNo: page, numOfRows: 1000, sidoCd, dgsbjtCd: CFG.deptCode });
+        const r = await callApi(CFG.listUrl, { pageNo: page, numOfRows: 1000, sidoCd, dgsbjtCd: dept });
         total = r.total;
         for (const it of r.items) {
           if (!it.ykiho) continue;
           seen.add(it.ykiho);
-          const prev = state.items[it.ykiho] || {};
-          state.items[it.ykiho] = Object.assign(prev, {
+          const prev = items[it.ykiho] || {};
+          items[it.ykiho] = Object.assign(prev, {
             id: it.ykiho, name: it.yadmNm || '', type: it.clCdNm || '',
             sidoCd: it.sidoCd || sidoCd, sido: it.sidoCdNm || sidoNm,
             sgguCd: it.sgguCd || '', sggu: it.sgguCdNm || '',
@@ -245,34 +243,52 @@ async function main() {
             lng: it.XPos ? Number(Number(it.XPos).toFixed(6)) : null,
             lat: it.YPos ? Number(Number(it.YPos).toFixed(6)) : null,
             doctors: it.drTotCnt ? Number(it.drTotCnt) : null,
-            // 의사 구성: 전문의·일반의·레지던트·인턴 (의과)
-            staff: [it.mdeptSdrCnt, it.mdeptGdrCnt, it.mdeptResdntCnt, it.mdeptIntnCnt].map((v) => Number(v) || 0),
-          });
+            // 의사 구성: 전문의·일반의·레지던트·인턴 (소아과는 의과, 치과는 치과 인원)
+            staff: (dental ? [it.detySdrCnt, it.detyGdrCnt, it.detyResdntCnt, it.detyIntnCnt] : [it.mdeptSdrCnt, it.mdeptGdrCnt, it.mdeptResdntCnt, it.mdeptIntnCnt]).map((v) => Number(v) || 0),
+          }, dental ? { dent: 1 } : {});
         }
         got += r.items.length;
         page++;
       } while (got < total && page < 50);
-      listOk++;
-      console.log(`목록 ${sidoNm}: ${got}곳`);
+      ok++;
+      console.log(`${label} ${sidoNm}: ${got}곳`);
     } catch (e) {
       if (e.fatal) throw e;
-      console.error(`목록 ${sidoNm} 실패: ${e.message} (이 시도는 이전 자료 유지)`);
-      for (const h of Object.values(state.items)) if (h.sidoCd === sidoCd) seen.add(h.id);
+      console.error(`${label} ${sidoNm} 실패: ${e.message} (이 시도는 이전 자료 유지)`);
+      for (const h of Object.values(items)) if (h.sidoCd === sidoCd) seen.add(h.id);
     }
   }
-  if (!listOk) throw new Error('모든 시도의 목록 조회에 실패했습니다.');
-  console.log(`목록 합계: ${seen.size}곳`);
+  if (!ok) return { ok: 0 };
+  console.log(`${label} 합계: ${seen.size}곳`);
   let removed = 0;
-  for (const id of Object.keys(state.items)) if (!seen.has(id)) { delete state.items[id]; removed++; }
+  for (const id of Object.keys(items)) if (!seen.has(id)) { delete items[id]; removed++; }
+  if (removed) console.log(`${label}: 폐업·과목폐지 ${removed}곳 제외`);
+  return { ok, count: seen.size };
+}
+
+// ───── 실행 ─────
+async function main() {
+  if (!CFG.key) throw new Error('HIRA_SERVICE_KEY 가 없습니다. (GitHub: Settings > Secrets and variables > Actions)');
+  const state = readJson(P.state, { listUpdatedAt: null, items: {} });
+
+  // 1) 전국 목록 — 소아청소년과(11) + 소아치과(53)
+  state.dental = state.dental || { items: {} };
+  const pedsList = await fetchList(CFG.deptCode, state.items, '목록', false);
+  if (!pedsList.ok) throw new Error('모든 시도의 목록 조회에 실패했습니다.');
   state.listUpdatedAt = new Date().toISOString();
-  if (removed) console.log(`폐업·과목폐지 ${removed}곳 제외`);
+  try {
+    const dent = await fetchList(CFG.dentCode, state.dental.items, '소아치과 목록', true);
+    if (dent.ok) state.dental.at = new Date().toISOString();
+  } catch (e) { if (e.fatal) throw e; console.error('소아치과 목록 실패(이전 자료 유지): ' + e.message); }
+  const everyone = () => Object.values(state.items).concat(Object.values(state.dental.items));
+  const isKid = (h) => (h.dent ? (DENT_NAME.test(h.name) || (h.sdr && h.sdr.dentPeds > 0) ? 1 : 0) : isPeds(h));
 
   // 2) 진료시간 (오래된 것부터, 상한만큼)
   const maxAge = CFG.detailMaxAgeDays * 86400000;
-  const targets = Object.values(state.items)
+  const targets = everyone()
     .filter((h) => !h.detail || h.detail.v !== 5 || Date.now() - Date.parse(h.detail.at) > maxAge) // v5: 위치 안내·접수시간 항목 추가로 한 번 다시 받음 (소아과·병원급 먼저)
     // 소아과 전문·병원급 먼저, 그다음 오래된 순
-    .sort((a, b) => (isPeds(b) - isPeds(a)) || ((a.detail ? Date.parse(a.detail.at) : 0) - (b.detail ? Date.parse(b.detail.at) : 0)))
+    .sort((a, b) => (isKid(b) - isKid(a)) || ((a.detail ? Date.parse(a.detail.at) : 0) - (b.detail ? Date.parse(b.detail.at) : 0)))
     .slice(0, CFG.detailPerRun);
   let n = 0, stop = false, done = 0, loggedKeys = false;
   const worker = async () => {
@@ -301,11 +317,11 @@ async function main() {
   const extraAge = CFG.extraMaxAgeDays * 86400000;
   const stale = (x) => !x || Date.now() - Date.parse(x.at) > extraAge;
   await runQueue('교통정보', CFG.transUrl,
-    Object.values(state.items).filter((h) => isPeds(h) && stale(h.trans)).slice(0, CFG.transPerRun),
+    everyone().filter((h) => isKid(h) && stale(h.trans)).slice(0, CFG.transPerRun),
     (h, items) => { h.trans = { lines: items.map(transLine).filter(Boolean).slice(0, 3), at: new Date().toISOString() }; });
   await runQueue('전문의 수', CFG.sdrUrl,
-    Object.values(state.items).filter((h) => stale(h.sdr) || !h.sdr.v).sort((a, b) => isPeds(b) - isPeds(a)).slice(0, CFG.sdrPerRun), // v2: 과목별 전문의 목록까지 저장
-    (h, items) => { h.sdr = { peds: pedsSpecialists(items), list: specList(items), v: 2, at: new Date().toISOString() }; });
+    everyone().filter((h) => stale(h.sdr) || !h.sdr.v).sort((a, b) => isKid(b) - isKid(a)).slice(0, CFG.sdrPerRun), // v2: 과목별 전문의 목록까지 저장
+    (h, items) => { const list = specList(items); h.sdr = { peds: pedsSpecialists(items), dentPeds: list.filter((x) => x[0] === '소아치과').reduce((n, x) => n + x[1], 0), list, v: 2, at: new Date().toISOString() }; });
   await runQueue('진료과목', CFG.subjUrl,
     Object.values(state.items).filter((h) => (isPeds(h) || (h.sdr && h.sdr.peds > 0)) && stale(h.subj)).slice(0, CFG.subjPerRun),
     (h, items) => { h.subj = { list: subjList(items), at: new Date().toISOString() }; });
@@ -388,7 +404,42 @@ function buildOutputs(state) {
     }
     rows.push(o);
   }
+  // 🦷 소아치과 (진료과목에 소아치과가 있는 치과)
+  const drows = [];
+  const dlist = Object.values((state.dental && state.dental.items) || {}).sort((a, b) => order.indexOf(a.sidoCd) - order.indexOf(b.sidoCd) || a.name.localeCompare(b.name, 'ko'));
+  for (const h of dlist) {
+    const r = (regions[h.sidoCd] = regions[h.sidoCd] || { name: h.sido, sggu: {} });
+    if (h.sgguCd && !r.sggu[h.sgguCd]) r.sggu[h.sgguCd] = h.sggu;
+    const o = { i: h.id, n: h.name, t: h.type, s: h.sidoCd, g: h.sgguCd, a: h.addr, p: h.tel };
+    if (h.lat != null) { o.y = h.lat; o.x = h.lng; }
+    if (h.doctors) o.dr = h.doctors;
+    if (h.staff && h.staff.some(Boolean)) o.dz = h.staff;
+    const pd = h.sdr ? (h.sdr.dentPeds || 0) : 0;
+    if (pd > 0) o.pd = pd;
+    // 1 = 소아치과 전문(이름 또는 소아치과 전문의 있음), 3 = 일반 치과(진료과목에 소아치과)
+    o.k = DENT_NAME.test(h.name) || pd > 0 ? 1 : 3;
+    if (h.sdr && h.sdr.list && h.sdr.list.length) o.sp = h.sdr.list;
+    const d = h.detail;
+    if (d && d.park) o.pk = d.park;
+    if (d && d.plc) o.pl = d.plc;
+    if (h.trans && h.trans.lines && h.trans.lines.length) o.tr = h.trans.lines;
+    if (d && d.hours) {
+      o.h = d.hours;
+      if (d.holidayOpen) o.ho = 1;
+      if (d.lunch) o.l = d.lunch;
+      if (d.lunchSat) o.ls = d.lunchSat;
+      if (d.holiNote) o.hn = d.holiNote;
+      if (d.sunNote) o.sn = d.sunNote;
+      if (d.rcvWeek) o.rw = d.rcvWeek;
+      if (d.rcvSat) o.rs = d.rcvSat;
+    }
+    drows.push(o);
+  }
+  if (drows.length) writeJson(path.join(P.outDir, 'dental.json'), drows);
+
   const meta = {
+    dentalCount: drows.length,
+    dentalKids: drows.filter((r) => r.k === 1).length,
     updatedAt: state.listUpdatedAt,
     count: rows.length,
     withHours: rows.filter((r) => r.h).length,
@@ -402,7 +453,7 @@ function buildOutputs(state) {
   };
   writeJson(path.join(P.outDir, 'hospitals.json'), rows);
   writeJson(path.join(P.outDir, 'meta.json'), meta, true);
-  console.log(`앱용 파일 저장: ${rows.length}곳`);
+  console.log(`앱용 파일 저장: 소아과 ${rows.length}곳 · 소아치과 ${drows.length}곳 (소아치과 전문 ${drows.filter((r) => r.k === 1).length}곳)`);
 }
 
 module.exports = { main, buildOutputs, parseItems, parseDetail, plcText, specList, subjList, CFG, P };

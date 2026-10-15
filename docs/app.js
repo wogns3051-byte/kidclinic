@@ -66,6 +66,19 @@
     }).catch(function (e) { dbPromise = null; throw new Error('병원 자료를 받지 못했어요. 인터넷 연결을 확인해 주세요.'); });
     return dbPromise;
   }
+  // 🦷 소아치과 자료 (필요할 때만 받음). 받으면 db.byId 에도 넣어 상세·즐겨찾기·메모가 함께 동작
+  var dentPromise = null;
+  function getDental() {
+    if (dentPromise) return dentPromise;
+    dentPromise = getDB().then(function (db) {
+      return fetchJson(DATA_BASE + '/dental.json?t=' + Math.floor(Date.now() / 3600000))
+        .then(function (rows) { try { localStorage.setItem('kc-dental', JSON.stringify(rows)); } catch (e) {} return rows; })
+        .catch(function () { var c = load('kc-dental', null); return c || fetchJson('./data/dental.json'); })
+        .catch(function () { return []; })
+        .then(function (rows) { rows.forEach(function (r) { r.dt = 1; db.byId[r.i] = r; }); db.dental = rows; return db; });
+    });
+    return dentPromise;
+  }
   function kstNow() {
     var d = new Date(Date.now() + 9 * 3600000);
     return { date: d.toISOString().slice(0, 10), dow: d.getUTCDay(), hhmm: d.getUTCHours() * 100 + d.getUTCMinutes() };
@@ -161,7 +174,8 @@
       open: openState(r, now, db.holis), night: isNight(r), weekend: isWeekend(r), moonlight: !!r.m, moonKind: r.m || 0, general: r.k === 3, er: !!r.er, erTel: r.et || '', erLevel: r.el || '' };
     o.when = whenInfo(r, now, db.holis, o.open);
     o.sd = r.sd || 0;
-    o.also = alsoOf(r);
+    o.also = r.dt ? [] : alsoOf(r);
+    if (r.dt) { o.dental = true; o.pd = r.pd || 0; o.dentKid = r.k === 1; o.general = false; }
     if (lat != null && r.y != null) o.distance = Math.round(distKm(lat, lng, r.y, r.x) * 100) / 100;
     if (full) {
       o.url = r.u || ''; o.park = r.pk || ''; o.trans = r.tr || []; o.plc = r.pl || ''; o.staff = r.dz || null; o.specs = r.sp || []; o.subjects = r.sj || [];
@@ -174,7 +188,8 @@
   }
   function api(path, q) {
     q = q || {};
-    return getDB().then(function (db) {
+    var needDent = q.ds === 'dental' || q.ids || /^\/hospitals\//.test(path);
+    return (needDent ? getDental() : getDB()).then(function (db) {
       var now = kstNow();
       var lat = q.lat != null && q.lat !== '' ? Number(q.lat) : null, lng = lat != null ? Number(q.lng) : null;
       if (path === '/health') return { hospitals: db.meta.pedsCount || db.meta.count, withHours: db.meta.withHours, listUpdatedAt: db.meta.updatedAt };
@@ -200,8 +215,10 @@
       var ids = q.ids ? q.ids.split(',') : null;
       var radius = q.radius ? Number(q.radius) : null;
       var out = [];
-      db.rows.forEach(function (r) {
-        if (r.k === 3 && q.general !== '1' && !ids) return;
+      var src = ids ? db.rows.concat(db.dental || []) : q.ds === 'dental' ? (db.dental || []) : db.rows;
+      src.forEach(function (r) {
+        if (r.dt) { if (q.kidsOnly === '1' && r.k !== 1) return; }
+        else if (r.k === 3 && q.general !== '1' && !ids) return;
         if (q.sido && r.s !== q.sido) return;
         if (q.sggu && r.g !== q.sggu) return;
         if (kw && (r.n + r.a).replace(/\s/g, '').indexOf(kw) < 0) return;
@@ -258,13 +275,18 @@
     if (h.night) t.push('<span class="tag night">평일 야간</span>');
     if (h.er) t.push('<span class="tag er">야간 응급실</span>');
     if (h.weekend) t.push('<span class="tag weekend">일·공휴일</span>');
+    if (h.dental) {
+      if (h.pd) t.push('<span class="tag sd">🦷 소아치과 전문의' + (h.pd > 1 ? ' ' + h.pd + '명' : '') + '</span>');
+      t.push('<span class="tag dent">' + (h.dentKid ? '🦷 어린이·소아치과' : '🦷 치과 · 소아 진료') + '</span>');
+    }
     if (h.sd) t.push('<span class="tag sd">소아과 전문의' + (h.sd > 1 ? ' ' + h.sd + '명' : '') + '</span>');
     (h.also || []).forEach(function (a) { t.push('<span class="tag also">' + a.ic + ' ' + a.n + (a.sdr ? ' 전문의' : '도 봐요') + '</span>'); });
     if (h.general) t.push('<span class="tag">일반 의원·소아 진료</span>');
-    else if (h.type) t.push('<span class="tag">' + esc(h.type) + '</span>');
+    else if (h.type && !h.dental) t.push('<span class="tag">' + esc(h.type) + '</span>');
     return t.join('');
   }
   function avatar(h) {
+    if (h.dental) return '<span class="av dent" aria-hidden="true">🦷</span>';
     if (h.moonlight) return '<span class="av moon" aria-hidden="true">🌙</span>';
     if (h.general) return '<span class="av gen" aria-hidden="true">🩺</span>';
     if (/병원/.test(h.type || '')) return '<span class="av hosp" aria-hidden="true">🏥</span>';
@@ -304,7 +326,7 @@
     c.addEventListener('click', function () {
       c.classList.toggle('on');
       var g = c.parentNode.dataset.for;
-      if (g === 'region') loadRegion(); else if (g === 'near') loadNear(); else if (g === 'pharm') loadPharm(); else loadNight();
+      if (g === 'region' || g === 'dental') loadRegion(); else if (g === 'near') loadNear(); else if (g === 'pharm') loadPharm(); else loadNight();
     });
   });
 
@@ -324,7 +346,22 @@
   }
 
   // ───── 탭: 지역 ─────
-  var regionOffset = 0, regionsReady = false;
+  var regionOffset = 0, regionsReady = false, regionMode = load('mode', 'peds') === 'dental' ? 'dental' : 'peds';
+  // 🧸 소아과 / 🦷 아이 치과 전환
+  function applyMode() {
+    $$('#mode-seg button').forEach(function (b) { b.classList.toggle('on', b.dataset.mode === regionMode); });
+    var dent = regionMode === 'dental';
+    var pc = document.querySelector('.chips[data-for="region"]'), dc = document.querySelector('.chips[data-for="dental"]');
+    if (pc) pc.hidden = dent; if (dc) dc.hidden = !dent;
+    var hint = $('#region-hint');
+    if (hint) hint.innerHTML = dent ? '진료과목에 <b>소아치과</b>가 있는 치과예요. <b>소아치과 전문만</b>을 누르면 어린이 치과이거나 소아치과 전문의가 있는 곳만 보여요. 아이 진료 여부는 전화로 꼭 확인하세요.'
+      : '기본은 소아청소년과 전문 의원과 병원급만 보여요. 내과·가정의학과 등에서 소아도 보는 곳은 <b>일반 의원 포함</b>을 누르세요.';
+    $('#kw').placeholder = dent ? '치과 이름·주소 검색' : '병원 이름·주소 검색';
+  }
+  $$('#mode-seg button').forEach(function (b) {
+    b.addEventListener('click', function () { regionMode = b.dataset.mode; save('mode', regionMode); applyMode(); loadRegion(); });
+  });
+  applyMode();
   // ───── 📌 우리 동네 고정 ─────
   function homeRegion() { return load('home', null); }
   function regionName(sd, sg) {
@@ -386,7 +423,8 @@
     }
     regionOffset = more ? regionOffset + 50 : 0;
     if (!more) loading(list, cnt);
-    var p = Object.assign({ sido: sido, sggu: sggu, q: kw, limit: 50, offset: regionOffset }, chipFilters('region'));
+    var p = Object.assign({ sido: sido, sggu: sggu, q: kw, limit: 50, offset: regionOffset }, chipFilters(regionMode === 'dental' ? 'dental' : 'region'));
+    if (regionMode === 'dental') p.ds = 'dental';
     api('/hospitals', p).then(function (d) {
       var alsoOn = ALSO.some(function (a) { return p[a[0]] === '1'; });
       render(list, cnt, d, more, alsoOn ? '함께 보는 과 자료(진료과목·과목별 전문의)는 받는 중이라 아직 비어 있을 수 있어요. 며칠 뒤 다시 확인해 주세요.' : '');
@@ -623,7 +661,7 @@
       }).join('') +
       row('holi', '공휴일', d.holiOpen ? d.holiHours : null, null, null, holiToday, d.holiOpen && !d.holiExact ? '시간은 전화 확인' : (d.holiNote && !/휴진|휴무/.test(d.holiNote) ? d.holiNote : '')) + '</div>' +
       '<div class="hrs-legend"><span><i class="lg-open"></i>진료</span><span><i class="lg-lunch"></i>점심시간</span><span><i class="lg-now"></i>지금</span></div>' +
-      '<div class="hrs-tip">' + (rcvW || rcvS ? '접수 마감은 병원이 신고한 접수시간이에요. ' : '소아과는 보통 진료 끝나기 30분 전쯤 접수를 마감해요. ') + '점심시간 직전·진료 마감 직전은 접수가 막힐 수 있어요.</div>';
+      '<div class="hrs-tip">' + (rcvW || rcvS ? '접수 마감은 병원이 신고한 접수시간이에요. ' : '보통 진료 끝나기 30분 전쯤 접수를 마감해요. ') + '점심시간 직전·진료 마감 직전은 접수가 막힐 수 있어요.</div>';
     return html;
   }
   // 👩‍⚕️ 의료진·진료과목 (심평원 자료: 의사 구성, 과목별 전문의 수, 진료과목)
@@ -645,7 +683,7 @@
         return '<em class="' + (/소아/.test(x[0]) ? 'peds' : '') + '">' + esc(x[0]) + ' ' + x[1] + '명</em>'; }).join('') + '</div></div>' : '') +
       (h.subjects.length ? '<div class="st-row"><span>진료과목</span><div class="st-chips sj">' + h.subjects.map(function (x) {
         return '<em class="' + (/소아/.test(x) ? 'peds' : '') + '">' + esc(x) + '</em>'; }).join('') + '</div></div>' : '') +
-      '<div class="st-note">' + (peds ? '분홍 동그라미는 소아청소년과 전문의, ' : '') + '🧑‍⚕️ 전문의 · 👤 일반의·수련의예요.</div>' +
+      '<div class="st-note">' + (peds ? '분홍 동그라미는 ' + (h.dental ? '소아치과' : '소아청소년과') + ' 전문의, ' : '') + '🧑‍⚕️ 전문의 · 👤 일반의·수련의예요.</div>' +
       whyNoDoctor() +
       doctorLinks(h) + '</div>';
   }
@@ -741,7 +779,7 @@
         '<div class="meta" style="display:flex;gap:5px;flex-wrap:wrap">' + tags(h) + '</div>' +
         '<div class="addr">' + esc(h.addr) + (h.distance != null ? ' · 직선거리 ' + h.distance + 'km' : '') + '</div>' +
         (h.when ? '<div class="when-box' + (h.when.soon ? ' soon' : '') + '"><b>' + whenText(h.when) + '</b>' +
-          (h.when.kind === 'open' || h.when.kind === 'lunch' ? '<span>소아과는 보통 진료 끝나기 30분 전쯤 접수를 마감해요. 늦은 시간엔 출발 전에 전화로 확인하세요.</span>' : '') + '</div>' : '') +
+          (h.when.kind === 'open' || h.when.kind === 'lunch' ? '<span>보통 진료 끝나기 30분 전쯤 접수를 마감해요. 늦은 시간엔 출발 전에 전화로 확인하세요.</span>' : '') + '</div>' : '') +
         '<div class="actions">' +
           (tel ? '<a class="btn" href="tel:' + tel + '">📞 전화하기</a>' : '<span class="btn ghost">전화번호 없음</span>') +
           '<a class="btn" href="' + kakao + '">카카오맵 길찾기</a>' +

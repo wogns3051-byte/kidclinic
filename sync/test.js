@@ -14,6 +14,11 @@ const H = [
   { ykiho: 'C1', yadmNm: '튼튼가정의원', clCdNm: '의원', sidoCd: '370000', sidoCdNm: '경북', sgguCd: '370100', sgguCdNm: '김천시', addr: '경북 김천시 D로 4', telno: '054-000-0004', XPos: '128.12', YPos: '36.13', d: null },
   { ykiho: 'B1', yadmNm: '서울&amp;하늘소아과의원', clCdNm: '의원', sidoCd: '110000', sidoCdNm: '서울', sgguCd: '110001', sgguCdNm: '강남구', addr: '서울 강남구 C로 3', telno: '02-000-0003', XPos: '127.03', YPos: '37.5', d: null },
 ];
+const D = [
+  { ykiho: 'D1', yadmNm: '김천튼튼어린이치과의원', clCdNm: '치과의원', sidoCd: '370000', sidoCdNm: '경북', sgguCd: '370100', sgguCdNm: '김천시', addr: '경북 김천시 E로 5', telno: '054-000-0005', XPos: '128.11', YPos: '36.13', drTotCnt: '2', detySdrCnt: '1', detyGdrCnt: '1',
+    d: { trmtMonStart: '0930', trmtMonEnd: '1830', trmtSatStart: '0930', trmtSatEnd: '1300', lunchWeek: '13:00~14:00' } },
+  { ykiho: 'D2', yadmNm: '바른치과의원', clCdNm: '치과의원', sidoCd: '370000', sidoCdNm: '경북', sgguCd: '370300', sgguCdNm: '상주시', addr: '경북 상주시 F로 6', telno: '054-000-0006', XPos: '128.15', YPos: '36.41', d: null },
+];
 const xml = (items, total, code = '00') => `<?xml version="1.0"?><response><header><resultCode>${code}</resultCode><resultMsg>OK</resultMsg></header><body><items>${
   items.map((o) => '<item>' + Object.entries(o).map(([k, v]) => `<${k}>${v}</${k}>`).join('') + '</item>').join('')
 }</items><totalCount>${total}</totalCount></body></response>`;
@@ -23,7 +28,7 @@ const mock = http.createServer((req, res) => {
   if (!req.url.startsWith('/portal')) assert.strictEqual(q.get('serviceKey'), 'TESTKEY');
   if (req.url.startsWith('/list')) {
     if (failSeoul && q.get('sidoCd') === '110000') { res.statusCode = 500; return res.end('err'); }
-    const rows = H.filter((h) => h.sidoCd === q.get('sidoCd')).map(({ d, ...r }) => r);
+    const rows = (q.get('dgsbjtCd') === '53' ? D : H).filter((h) => h.sidoCd === q.get('sidoCd')).map(({ d, ...r }) => r);
     return res.end(xml(rows, rows.length));
   }
   if (req.url.startsWith('/nmc/getBabyListInfoInqire')) {
@@ -40,6 +45,7 @@ const mock = http.createServer((req, res) => {
   if (req.url.startsWith('/sdr')) {
     sdrCalls++;
     const id = q.get('ykiho');
+    if (id === 'D1') return res.end(xml([{ dgsbjtCdNm: '소아치과', dtlSdrCnt: '1' }], 1));
     const rows = id === 'C1' ? [{ dgsbjtCdNm: '가정의학과', dtlSdrCnt: '1' }, { dgsbjtCdNm: '소아청소년과', dtlSdrCnt: '1' }] : id === 'A1' ? [{ dgsbjtCd: '11', dgsbjtCdNm: '소아청소년과', dtlSdrCnt: '2' }] : [{ dgsbjtCdNm: '내과', dtlSdrCnt: '2' }];
     return res.end(xml(rows, rows.length));
   }
@@ -101,7 +107,7 @@ const mock = http.createServer((req, res) => {
   }
   detailCalls++;
   if (brokenDetail) { res.statusCode = 400; return res.end(xml([], 0, '12').replace('<resultMsg>OK</resultMsg>', '<resultMsg>해당 오픈API 서비스가 없거나 폐기됨</resultMsg>')); }
-  const h = H.find((x) => x.ykiho === q.get('ykiho'));
+  const h = H.concat(D).find((x) => x.ykiho === q.get('ykiho'));
   res.end(xml(h && h.d ? [h.d] : [], h && h.d ? 1 : 0));
 });
 
@@ -154,6 +160,11 @@ const mock = http.createServer((req, res) => {
   ok(a1.pl === '김천역 정문 맞은편 100m', '위치 안내');
   ok(a1.rw === '08:30~20:30' && a1.rs === '09:00~12:30', '접수시간');
   ok(a1.dr === 3 && a1.dz.join() === '2,1,0,0', '의사 구성(전문의·일반의)');
+  const dj = JSON.parse(fs.readFileSync(path.join(root, 'docs', 'data', 'dental.json'), 'utf8'));
+  const d1 = dj.find((r) => r.i === 'D1'), d2 = dj.find((r) => r.i === 'D2');
+  ok(dj.length === 2 && d1.k === 1 && d1.pd === 1 && d2.k === 3, '소아치과 목록·분류(어린이치과·전문의 / 일반 치과)');
+  ok(d1.h && d1.h[1] === '0930-1830' && d1.dz.join() === '1,1,0,0' && d1.l, '소아치과 진료시간·치과 인원');
+  ok(meta().regions['370000'].sggu['370300'] === '상주시' && meta().dentalCount === 2, '치과만 있는 지역도 지역 목록에');
   ok(a1.sp && a1.sp[0][0] === '소아청소년과' && a1.sp[0][1] === 2 && c1.sp.length === 2, '과목별 전문의');
   ok(a1.sj && a1.sj.join() === '소아청소년과,이비인후과' && subjCalls >= 1, '진료과목 (소아과·병원급)');
   const lb = JSON.parse(fs.readFileSync(path.join(root, 'docs', 'data', 'lb', '370000.json'), 'utf8'));

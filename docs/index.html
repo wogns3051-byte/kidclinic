@@ -31,7 +31,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="stylesheet" href="vendor/jua/jua.css">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-<link rel="stylesheet" href="style.css?v=43">
+<link rel="stylesheet" href="style.css?v=44">
 </head>
 <body>
 <header class="top">
@@ -82,6 +82,7 @@
     <div id="holiday-banner" hidden></div>
     <div id="open-near" class="open-near"></div>
     <div class="panel">
+      <div class="seg mode-seg" id="mode-seg"><button data-mode="peds" class="on">🧸 소아과</button><button data-mode="dental">🦷 아이 치과</button></div>
       <div class="row">
         <select id="sido" aria-label="시도"><option value="">시·도 선택</option></select>
         <select id="sggu" aria-label="시군구" disabled><option value="">시·군·구 전체</option></select>
@@ -103,8 +104,14 @@
         <button class="chip" data-f="eye">👁 안과도</button>
         <button class="chip" data-f="skin">🧴 피부과도</button>
       </div>
+      <div class="chips" data-for="dental" hidden>
+        <button class="chip" data-f="openNow">지금 진료중</button>
+        <button class="chip" data-f="kidsOnly">🦷 소아치과 전문만</button>
+        <button class="chip" data-f="night">평일 야간</button>
+        <button class="chip" data-f="weekend">일·공휴일</button>
+      </div>
     </div>
-    <div class="hint">기본은 소아청소년과 전문 의원과 병원급만 보여요. 내과·가정의학과 등에서 소아도 보는 곳은 <b>일반 의원 포함</b>을 누르세요.</div>
+    <div class="hint" id="region-hint">기본은 소아청소년과 전문 의원과 병원급만 보여요. 내과·가정의학과 등에서 소아도 보는 곳은 <b>일반 의원 포함</b>을 누르세요.</div>
     <div class="count" id="region-count"></div>
     <ul class="list" id="region-list"></ul>
     <button class="more" id="region-more" hidden>더 보기</button>
@@ -252,13 +259,13 @@
 </div>
 
 <script src="vendor/leaflet/leaflet.js"></script>
-<script src="config.js?v=43"></script>
-<script src="app.js?v=43"></script>
-<script src="growth-data.js?v=43"></script>
-<script src="kid.js?v=43"></script>
-<script src="care.js?v=43"></script>
-<script src="scan.js?v=43"></script>
-<script src="i18n.js?v=43"></script>
-<script src="triage.js?v=43"></script>
+<script src="config.js?v=44"></script>
+<script src="app.js?v=44"></script>
+<script src="growth-data.js?v=44"></script>
+<script src="kid.js?v=44"></script>
+<script src="care.js?v=44"></script>
+<script src="scan.js?v=44"></script>
+<script src="i18n.js?v=44"></script>
+<script src="triage.js?v=44"></script>
 </body>
 </html>

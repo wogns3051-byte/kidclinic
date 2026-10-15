@@ -481,6 +481,7 @@
     { id: 'bcg', c: 'vac', n: 'BCG(결핵)', s: 'd0', e: 'd28', note: '생후 4주 이내. 피내접종은 보건소 예약제인 곳이 많아요' },
     { id: 'chk1', c: 'chk', n: '영유아 건강검진 1차', s: 'd14', e: 'd35' },
     { id: 'hepb2', c: 'vac', n: 'B형간염 2차', s: 'm1', e: 'm2' },
+    { id: 'dent1', c: 'oral', n: '첫 치과 검진', s: 'm6', e: 'm12', note: '첫 이가 나면 늦어도 첫돌 무렵 치과에서 첫 검진을 받아요 (대한소아치과학회 권고). 그다음은 3~6개월마다 정기검진·불소 도포를 상담하세요' },
     { id: 'v2m', c: 'vac', n: '2개월 접종', s: 'm2', e: 'm3', note: 'DTaP·폴리오·Hib·폐렴구균·로타바이러스 1차' },
     { id: 'v4m', c: 'vac', n: '4개월 접종', s: 'm4', e: 'm5', note: 'DTaP·폴리오·Hib·폐렴구균·로타바이러스 2차' },
     { id: 'chk2', c: 'chk', n: '영유아 건강검진 2차', s: 'm4', e: 'm6' },
@@ -589,6 +590,16 @@
     return html;
   }
 
+  // 🦷 유치가 나는 시기 (대략, 아이마다 몇 달씩 차이 나요)
+  var TEETH = [[6, 10, '아래 앞니 2개'], [8, 12, '위 앞니 2개'], [9, 16, '옆 앞니 4개'], [13, 19, '첫째 어금니 4개'], [16, 23, '송곳니 4개'], [23, 33, '둘째 어금니 4개'], [72, 84, '첫 영구치 (큰 어금니·아래 앞니)']];
+  function teethCard(kid) {
+    var m = ageMonths(kid.birth);
+    if (m === null || m < 3 || m > 96) return '';
+    return '<details class="teeth"' + (m <= 36 ? ' open' : '') + '><summary>🦷 지금쯤 나는 이</summary><ul>' + TEETH.map(function (t) {
+      var st = m > t[1] ? 'done' : m >= t[0] - 1 ? 'now' : '';
+      return '<li class="' + st + '"><span>' + (t[0] >= 72 ? (t[0] / 12) + '~' + (t[1] / 12) + '세' : t[0] + '~' + t[1] + '개월') + '</span><b>' + t[2] + '</b>' + (st === 'now' ? '<em>지금쯤</em>' : st === 'done' ? '<i>✓</i>' : '') + '</li>';
+    }).join('') + '</ul><div class="teeth-n">아이마다 몇 달씩 빠르거나 늦을 수 있어요. 첫돌이 지나도 이가 안 나면 치과에서 확인해 보세요. 이가 나면 하루 두 번 쌀알 크기 불소치약으로 닦아 주세요. 지역 탭 위쪽 <b>🦷 아이 치과</b>에서 가까운 소아치과를 찾을 수 있어요.</div></details>';
+  }
   var showAllSched = false;
   function renderSched() {
     var box = $('#kid-sched'); if (!box) return;
@@ -628,7 +639,7 @@
     var sec = function (title, arr, cls) { return arr.length ? '<h3 class="bn-h">' + title + '</h3><ul class="sc-list">' + arr.map(function (x) { return item(x, cls); }).join('') + '</ul>' : ''; };
     box.innerHTML = kidPicker(kid, 'sched') +
       '<div class="sc-head">' + esc(kid.name) + ' · ' + ageText(kid.birth) + '</div>' +
-      stickerBoard(all, dn, today) +
+      stickerBoard(all, dn, today) + teethCard(kid) +
       '<div class="cal-box"><button class="btn" id="ics-btn">📅 남은 일정 캘린더에 한 번에 넣기</button>' +
       '<div class="cal-hint">아이폰·삼성 캘린더에 들어가고, 각 일정 시작 하루 전 아침 9시에 알림이 와요. 구글 캘린더는 아래 일정마다 "구글 캘린더에 추가"를 눌러 주세요.</div></div>' +
       (function () {

@@ -89,6 +89,15 @@
         zh: ['让孩子坐下，头稍微向前低。', '用拇指和食指捏紧鼻翼（鼻子柔软的部分）10分钟，中途不要松开查看。', '不要让头向后仰，吞下血可能会引起呕吐。', '不要把纸巾深深塞进鼻子里。']
       },
       w: { ko: ['20분 넘게 멈추지 않을 때', '머리·얼굴을 다친 뒤 코피가 날 때', '어지러워하거나 창백할 때'], en: ['Does not stop after 20 minutes', 'Started after a head or face injury', 'Child is dizzy or pale'], vi: ['Không cầm sau 20 phút', 'Chảy máu sau khi bị thương ở đầu hoặc mặt', 'Trẻ chóng mặt hoặc xanh xao'], zh: ['20分钟以上止不住', '头部或脸部受伤后流鼻血', '孩子头晕或脸色苍白'] } },
+    { id: 'tooth', ic: '🦷',
+      t: { ko: '이가 다쳤어요 (빠짐·부러짐)', en: 'Tooth injury (knocked out or broken)', vi: 'Răng bị thương (rụng hoặc gãy)', zh: '牙齿受伤（脱落或折断）' },
+      s: {
+        ko: ['아이를 달래고, 피가 나면 깨끗한 거즈나 손수건으로 10분쯤 꾹 눌러요.', '이가 통째로 빠졌으면 뿌리(아래쪽)는 만지지 말고 하얀 머리 부분만 잡아요.', '흙이 묻었으면 우유나 생리식염수로 살짝만 헹궈요. 문지르거나 비누로 씻지 마세요.', '빠진 이나 부러진 조각을 우유(없으면 생리식염수)에 담아 30분~1시간 안에 치과로 가요. 휴지에 싸서 말리면 안 돼요.', '젖니(유치)는 억지로 다시 끼우지 마세요. 영구치는 치과에서 다시 심을 수 있으니 빨리 가는 게 중요해요.', '입술·잇몸이 부으면 차가운 수건으로 찜질해요.', '밤·휴일에는 응급실도 치과 진료가 안 되는 곳이 많아요. 가기 전에 전화로 꼭 확인하세요.'],
+        en: ['Comfort your child. If bleeding, press firmly with clean gauze or cloth for about 10 minutes.', 'If a whole tooth came out, hold it by the white crown. Do not touch the root.', 'If dirty, rinse gently with milk or saline. Do not scrub or wash with soap.', 'Put the tooth or broken piece in milk (or saline) and get to a dentist within 30–60 minutes. Do not let it dry in a tissue.', 'Do not push a baby tooth back in. A permanent tooth can be replanted by a dentist, so go quickly.', 'For swollen lips or gums, use a cold compress.', 'At night or on holidays many ERs cannot treat teeth. Call before you go.'],
+        vi: ['Dỗ bé bình tĩnh. Nếu chảy máu, ấn chặt bằng gạc sạch hoặc khăn khoảng 10 phút.', 'Nếu cả chiếc răng rụng ra, chỉ cầm phần thân răng màu trắng. Không chạm vào chân răng.', 'Nếu bị bẩn, rửa nhẹ bằng sữa hoặc nước muối sinh lý. Không chà hay rửa bằng xà phòng.', 'Ngâm răng hoặc mảnh gãy trong sữa (hoặc nước muối sinh lý) và đến nha sĩ trong 30–60 phút. Không gói khô trong giấy.', 'Không cố gắn lại răng sữa. Răng vĩnh viễn có thể được nha sĩ cắm lại, nên hãy đi nhanh.', 'Nếu môi, lợi sưng, chườm lạnh.', 'Ban đêm, ngày lễ nhiều phòng cấp cứu không khám răng. Hãy gọi điện trước khi đi.'],
+        zh: ['先安抚孩子。出血时用干净纱布或手帕用力按压约10分钟。', '整颗牙掉了时，只拿白色的牙冠部分，不要碰牙根。', '如果脏了，用牛奶或生理盐水轻轻冲洗，不要搓洗或用肥皂洗。', '把牙齿或断片泡在牛奶（或生理盐水）里，30分钟～1小时内去牙科。不要用纸巾包着让它变干。', '乳牙不要硬塞回去。恒牙可由牙医重新植回，所以要尽快去。', '嘴唇或牙龈肿时用冷毛巾冷敷。', '夜间和节假日很多急诊不看牙，去之前一定先打电话确认。']
+      },
+      w: { ko: ['머리도 부딪쳐 토하거나 처질 때', '피가 20분 넘게 멈추지 않을 때', '입을 벌리기 힘들거나 턱이 많이 아플 때', '이 조각을 삼켰거나 들이마셨을지 모를 때 (계속 기침)'], en: ['Also hit the head and is vomiting or drowsy', 'Bleeding does not stop after 20 minutes', 'Cannot open the mouth or the jaw hurts a lot', 'May have swallowed or inhaled a tooth piece (keeps coughing)'], vi: ['Cũng va đầu và nôn hoặc lừ đừ', 'Máu không cầm sau 20 phút', 'Khó há miệng hoặc hàm rất đau', 'Có thể đã nuốt hoặc hít phải mảnh răng (ho liên tục)'], zh: ['同时撞到头并呕吐或没精神', '出血20分钟以上不止', '张不开嘴或下巴很痛', '可能吞下或吸入了牙齿碎片（一直咳嗽）'] } },
     { id: 'head', ic: '🤕',
       t: { ko: '머리를 부딪혔어요', en: 'Hit their head', vi: 'Bị va đập đầu', zh: '头部撞伤' },
       s: {
