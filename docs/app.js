@@ -948,7 +948,7 @@
               (it.big ? '<div class="bn-big">' + esc(it.big) + '</div>' : '') +
               (it.who ? '<div class="bn-who">대상 · ' + esc(it.who) + '</div>' : '') +
               '<div class="bn-body">' + esc(it.body) + '</div>' +
-              (it.link ? '<a class="btn ghost bn-btn" href="' + esc(it.link.url) + '" target="_blank" rel="noopener">' + esc(it.link.label) + ' ↗</a>' : '') +
+              (it.link && /^https?:\/\//.test(it.link.url) ? '<a class="btn ghost bn-btn" href="' + esc(it.link.url) + '" target="_blank" rel="noopener">' + esc(it.link.label) + ' ↗</a>' : '') +
               (it.action ? '<button class="btn bn-btn" data-go-tab="' + esc(it.action.tab) + '" data-go-filter="' + esc(it.action.filter || '') + '"' + (it.action.mode ? ' data-go-mode="' + esc(it.action.mode) + '"' : '') + (it.action.pane ? ' data-go-pane="' + esc(it.action.pane) + '"' : '') + '>' + esc(it.action.label) + '</button>' : '') +
               '</li>';
           });
@@ -981,7 +981,7 @@
         return '<li class="bn-card lb"><div class="bn-title">' + (x.d ? '<span class="lb-dent">🦷 치아</span>' : '') + esc(x.n) + '</div>' + (x.c ? '<div class="bn-big">' + esc(x.c) + '</div>' : '') +
           (x.t ? '<div class="bn-who">대상 · ' + esc(x.t) + '</div>' : '') + (x.how ? '<div class="bn-body">신청 · ' + esc(x.how) + '</div>' : '') +
           '<div class="lb-ag">' + esc(x.ag || '') + (x.tel ? ' · ' + esc(x.tel) : '') + '</div>' +
-          (x.u ? '<a class="btn ghost bn-btn" href="' + esc(x.u) + '" target="_blank" rel="noopener">자세히 · 신청 ↗</a>' : '') + '</li>';
+          (x.u && /^https?:\/\//.test(x.u) ? '<a class="btn ghost bn-btn" href="' + esc(x.u) + '" target="_blank" rel="noopener">자세히 · 신청 ↗</a>' : '') + '</li>';
       };
       var more = function (arr, id) { return arr.length > 5 ? '<details class="lb-more"><summary>' + (arr.length - 5) + '개 더 보기</summary><ul class="list">' + arr.slice(5).map(card).join('') + '</ul></details>' : ''; };
       var dent = mine.concat(wide).filter(function (x) { return x.d; });

@@ -209,14 +209,14 @@ html.big .brand { font-size: 20px; }
 .kid-empty.small { padding: 12px; text-align: center; }
 #tab-benefit .alert { margin: 8px 16px 0; }
 .alert.soft { background: var(--warm-soft); border-color: #f1d3bd; color: #8a4a1e; }
-.med-box { margin: 8px 12px 0; padding: 12px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); display: grid; gap: 8px; }
+.med-box { margin: 8px 12px 0; padding: 12px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
 .med-time { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--muted); }
 .med-time input { height: 38px; border: 1px solid var(--line); border-radius: 10px; padding: 0 10px; background: var(--bg); }
 .med-btn { height: auto; min-height: 54px; padding: 8px 12px; display: grid; gap: 2px; text-align: center; }
 .med-btn small { font-weight: 500; font-size: 12px; opacity: .85; }
 .med-btn.alt { background: #3d5a80; }
-.temp-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
-.temp-row input { height: 44px; border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; background: var(--bg); font-size: 16px; }
+.temp-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.temp-row input { height: 44px; border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; background: var(--bg); font-size: 16px; min-width: 0; width: 100%; box-sizing: border-box; }
 .med-st { margin: 8px 12px 0; padding: 11px 13px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; display: grid; gap: 3px; }
 .med-st-h { font-weight: 700; font-size: 14px; }
 .med-st-b { font-size: 12.5px; color: var(--muted); }
@@ -275,11 +275,11 @@ html.big .brand { font-size: 20px; }
 .bk-btn { height: 36px; border-radius: 10px; border: 1px dashed var(--line); background: transparent; color: var(--muted); font-size: 13px; font-family: inherit; }
 .sc-done { font-size: 12.5px; color: var(--brand); font-weight: 700; }
 .sc-done a { color: var(--muted); font-weight: 500; margin-left: 4px; }
-.sym { display: grid; gap: 6px; padding-top: 4px; border-top: 1px dashed var(--line); }
+.sym { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 6px; padding-top: 4px; border-top: 1px dashed var(--line); }
 .sym-h { font-size: 12.5px; color: var(--muted); }
 .sym-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .sym-chips .chip { height: 32px; padding: 0 11px; font-size: 13px; }
-.temp-row input[type=text] { height: 44px; border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; background: var(--bg); font-size: 14px; font-family: inherit; color: var(--ink); }
+.temp-row input[type=text] { height: 44px; border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; background: var(--bg); font-size: 14px; font-family: inherit; color: var(--ink); min-width: 0; width: 100%; box-sizing: border-box; }
 /* ───── 오래된 자료 경고 ───── */
 .stale { padding: 8px 16px; background: #fff4d6; color: #7a5300; font-size: 12.5px; text-align: center; line-height: 1.45; }
 

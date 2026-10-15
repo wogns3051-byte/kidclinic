@@ -205,7 +205,7 @@
       '<div class="note pad">용량과 간격은 약 설명서와 약사 안내를 따라 주세요. 두 계열을 번갈아 먹이는 것은 의사·약사와 상의하세요.</div>' +
       '<h3 class="bn-h">최근 3일 기록</h3>' +
       (recent.length ? '<ul class="tl">' + recent.map(function (x) {
-        var label = x.type === 'temp' ? '🌡 ' + x.v.toFixed(1) + '℃' : x.type === 'note' ? '📝 ' + esc(x.v) : x.type === 'pee' ? '💧 소변·기저귀' : x.type === 'drink' ? '🥤 물·수유' : '💊 ' + DRUGS[x.type].name;
+        var label = x.type === 'temp' ? '🌡 ' + (+x.v || 0).toFixed(1) + '℃' : x.type === 'note' ? '📝 ' + esc(x.v) : x.type === 'pee' ? '💧 소변·기저귀' : x.type === 'drink' ? '🥤 물·수유' : '💊 ' + esc((DRUGS[x.type] || { name: '약' }).name);
         return '<li class="' + (x.type === 'temp' && x.v >= 38 ? 'hot' : x.type === 'note' && /경련/.test(x.v) ? 'hot' : '') + '"><span class="tl-t">' + dayLabel(x.t) + ' ' + hm(x.t) + '</span><span class="tl-v">' + label + '</span><button class="tl-x" data-del="' + x.t + '" aria-label="지우기">✕</button></li>';
       }).join('') + '</ul>' : '<div class="kid-empty small">아직 기록이 없어요</div>') +
       '<div class="actions pad"><button class="btn ghost" id="med-share">📤 진료 때 보여줄 기록 공유</button><button class="btn ghost" id="med-clear">기록 모두 지우기</button></div>' + privNote('kid');
@@ -504,7 +504,7 @@
     { id: 'oral4', c: 'oral', n: '영유아 구강검진 4차', s: 'm54', e: 'm65' },
     { id: 'je4', c: 'vac', n: '일본뇌염 4차', s: 'y6', e: 'y7', note: '만 6세 (불활성화 백신 기준)' },
     { id: 'chk8', c: 'chk', n: '영유아 건강검진 8차', s: 'm66', e: 'm71' },
-    { id: 'v12y', c: 'vac', n: '만 12세 접종', s: 'y11', e: 'y13', note: 'Tdap/Td 6차, 일본뇌염 5차, HPV(대상 여부 확인)' }
+    { id: 'v12y', c: 'vac', n: '만 12세 접종', s: 'y11', e: 'y13', note: 'Tdap/Td 6차, 일본뇌염 5차, HPV 1차 (여자아이, 2026년 5월부터 만 12세 남자아이도 무료 · 6~12개월 뒤 2차)' }
   ];
   var CAT = { vac: { label: '예방접종', icon: '💉', link: VAC, linkName: '예방접종도우미' },
               chk: { label: '건강검진', icon: '🩺', link: NHIS, linkName: '국민건강보험공단' },
@@ -538,7 +538,7 @@
     var from = addSpan(kid.birth, 'm6'), by = +kid.birth.slice(0, 4), y = from.getFullYear(), first = true;
     if (from.getMonth() < 4) y--; // 1~4월에 6개월이 되면 지난해 절기부터
     for (; y - by <= 14; y++) {
-      var s = new Date(y, 8, 21), e = new Date(y + 1, 3, 30);
+      var s = new Date(y, 8, first ? 21 : 28), e = new Date(y + 1, 3, 30); // 2회 대상(처음 맞는 해) 9/21, 1회 대상 9/28부터 (2026~27절기 기준)
       if (e < from) continue;
       if (s < from) s = from;
       list.push({ id: 'flu' + y, c: 'flu', n: y + '~' + String(y + 1).slice(2) + ' 절기 어린이 독감 접종' + (first ? ' (1차)' : ''), s: s, e: e,
@@ -871,7 +871,7 @@
 
   // ───── 💾 백업 내보내기·불러오기 ─────
   // 휴대폰에만 저장하는 대신, 이용자가 직접 파일로 옮길 수 있게 한다. (서버를 거치지 않음)
-  var BK_KEYS = /^(kids|kidlog:.+|kiddone:.+|kidgrow:.+|kidrx:.+|kidvisit:.+|kiddent:.+|lang|favs|hmemo|region|home|bigFont|kidPane)$/;
+  var BK_KEYS = /^(kids|kidlog:.+|kiddone:.+|kidgrow:.+|kidrx:.+|kidvisit:.+|kiddent:.+|lang|favs|favMode|hmemo|region|home|mode|bigFont|kidPane|careOpen|disSel|fluBannerOff)$/;
   function backupData() {
     var data = {};
     for (var i = 0; i < localStorage.length; i++) {
@@ -905,7 +905,7 @@
         if (!b || b.app !== 'aiapulttae' || !b.data) throw new Error();
         var n = (b.data.kids && b.data.kids.list || []).length;
         if (!confirm((b.at ? b.at.slice(0, 10) + '에 만든 ' : '') + '백업(아이 ' + n + '명)을 불러올까요?\n지금 이 휴대폰에 있는 아이 정보와 기록은 백업 내용으로 바뀌어요.')) return;
-        for (var i = localStorage.length - 1; i >= 0; i--) { var k = localStorage.key(i); if (/^(kids|kidlog:.+|kiddone:.+)$/.test(k)) localStorage.removeItem(k); }
+        for (var i = localStorage.length - 1; i >= 0; i--) { var k = localStorage.key(i); if (BK_KEYS.test(k)) localStorage.removeItem(k); }
         Object.keys(b.data).forEach(function (k) { if (BK_KEYS.test(k)) localStorage.setItem(k, JSON.stringify(b.data[k])); });
         toast('불러왔어요'); setTimeout(function () { location.reload(); }, 600);
       } catch (e) { toast('아이아플때 백업 파일이 아니에요'); }

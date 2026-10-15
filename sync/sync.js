@@ -362,6 +362,7 @@ function buildOutputs(state) {
   const order = SIDO.map((s) => s[0]);
   const list = Object.values(state.items).sort((a, b) => order.indexOf(a.sidoCd) - order.indexOf(b.sidoCd) || a.name.localeCompare(b.name, 'ko'));
   for (const h of list) {
+    if (/요양병원|정신병원|치과|한방|한의원/.test(h.type)) continue; // 지역 목록에 빈 시·군·구가 생기지 않게 먼저 거름
     const r = (regions[h.sidoCd] = regions[h.sidoCd] || { name: h.sido, sggu: {} });
     if (h.sgguCd) r.sggu[h.sgguCd] = h.sggu;
     const o = { i: h.id, n: h.name, t: h.type, s: h.sidoCd, g: h.sgguCd, a: h.addr, p: h.tel };
@@ -371,7 +372,6 @@ function buildOutputs(state) {
     if (h.url) o.u = h.url;
     if (h.moon) o.m = h.moon; else if (isMoon(h)) o.m = 1; // 1=달빛어린이병원, 2=소아전문센터
     // 분류: 1=소아 전문(이름 또는 소아청소년과 전문의 있음), 2=병원급(소아청소년과 있음), 3=일반 의원(진료과목에 소아청소년과만 등록)
-    if (/요양병원|정신병원|치과|한방|한의원/.test(h.type)) continue;
     const sd = h.sdr ? h.sdr.peds : 0;
     if (sd > 0) o.sd = sd;
     if (h.sdr && h.sdr.list && h.sdr.list.length) o.sp = h.sdr.list;
