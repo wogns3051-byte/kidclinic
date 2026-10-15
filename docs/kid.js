@@ -559,7 +559,7 @@
     var dn = done(kid), t = new Date(); t.setHours(0, 0, 0, 0);
     var out = schedFor(kid).filter(function (x) { return !dn[x.id] && x.s <= t && x.e >= t; }).map(function (x) { return { n: x.n, c: x.c, e: x.e, icon: CAT[x.c].icon }; });
     var dd = K.dentDue(kid);
-    if (dd) out.unshift({ n: '치과 정기검진', c: 'oral', e: dd.next, icon: '🦷', txt: dd.days < 0 ? (-dd.days) + '일 지났어요' : dd.days ? dd.days + '일 남았어요' : '오늘이에요' });
+    if (dd) out.unshift({ n: dd.rsv ? '치과 예약' : '치과 정기검진', c: 'oral', e: dd.next, icon: '🦷', txt: (dd.rt ? dd.rt + ' · ' : '') + (dd.days < 0 ? (dd.rsv ? '다녀왔으면 체크해 주세요' : (-dd.days) + '일 지났어요') : dd.days ? dd.days + '일 남았어요' : '오늘이에요') });
     return out;
   };
   function gcalLink(kid, x, who) {
@@ -610,17 +610,18 @@
     var d = load('kiddent:' + kid.id, {}), dn = done(kid), last = doneDate(d.last) || '';
     ['dent1', 'oral1', 'oral2', 'oral3', 'oral4'].forEach(function (k) { var v = doneDate(dn[k]); if (v && v > last) last = v; });
     var every = DENT_EVERY.indexOf(+d.every) >= 0 ? +d.every : 6;
-    var next = last ? addSpan(last, 'm' + every) : null;
-    return { last: last, every: every, next: next, on: !!d.on };
+    var rsv = doneDate(d.rsv) && d.rsv > last ? d.rsv : '';   // 치과에서 잡아 준 다음 예약 날짜
+    var rt = /^\d{2}:\d{2}$/.test(d.rt || '') ? d.rt : '';
+    var next = rsv ? new Date(rsv + 'T00:00:00') : last ? addSpan(last, 'm' + every) : null;
+    return { last: last, every: every, next: next, rsv: rsv, rt: rsv ? rt : '', hosp: rsv ? String(d.hosp || '').slice(0, 30) : '' };
   }
   K.dentDue = function (kid) {
     if (!kid || !kid.birth) return null;
     var di = dentInfo(kid); if (!di.next) return null;
     var t = new Date(); t.setHours(0, 0, 0, 0);
     var days = Math.round((di.next - t) / 86400000);
-    return days <= 14 ? { days: days, next: di.next } : null;
+    return days <= 14 ? { days: days, next: di.next, rsv: !!di.rsv, rt: di.rt } : null;
   };
-  // 나이에 맞는 치아 혜택 한 줄 안내 (자세한 건 혜택 탭)
   function dentTips(m) {
     var y = m / 12, out = [];
     if (m < 72) out.push('영유아 구강검진은 18개월부터 만 5세까지 4번 무료예요 (위 일정에 있어요)');
@@ -636,52 +637,86 @@
     var di = dentInfo(kid), t = new Date(); t.setHours(0, 0, 0, 0);
     var days = di.next ? Math.round((di.next - t) / 86400000) : null;
     var st = days === null ? '' : days < 0 ? '<b class="dn-late">' + (-days) + '일 지났어요</b>' : days <= 14 ? '<b class="dn-soon">' + (days ? days + '일 남았어요' : '오늘이에요') + '</b>' : days + '일 뒤';
+    var nextLine = !di.next ? '<div class="dn-next">마지막 치과 검진 날짜나 치과에서 잡아 준 예약 날짜를 넣으면 알려 드려요. 대한소아치과학회는 첫돌 무렵 첫 검진, 그 뒤 3~6개월마다 정기검진을 권해요.</div>' :
+      '<div class="dn-next">' + (di.rsv ? '📌 예약 ' : '다음 검진 ') + '<b>' + kdate(di.next) + (di.rt ? ' ' + di.rt : '') + '</b>' + (di.hosp ? ' · ' + esc(di.hosp) : '') + ' · ' + st +
+        (di.rsv ? '' : '<small>마지막 검진 + ' + di.every + '개월로 계산했어요</small>') + '</div>';
+    var past = di.rsv && days < 0;
     return '<div class="dent-card"><div class="dn-h">🦷 치과 정기검진 알림</div>' +
       '<div class="dn-row"><label>마지막 치과 검진<input type="date" id="dn-last" value="' + di.last + '" max="' + ymd(t) + '"></label>' +
       '<label>주기<select id="dn-every">' + DENT_EVERY.map(function (n) { return '<option value="' + n + '"' + (n === di.every ? ' selected' : '') + '>' + n + '개월마다</option>'; }).join('') + '</select></label></div>' +
-      (di.next ? '<div class="dn-next">다음 검진 <b>' + kdate(di.next) + '</b> · ' + st + '</div>' +
-        '<div class="dn-btns"><button class="btn" id="dn-ics">📅 반복 알림 넣기</button><button class="btn ghost" id="dn-gcal">구글 캘린더</button><button class="btn ghost" id="dn-today">오늘 다녀왔어요</button></div>' +
-        '<div class="cal-hint">' + di.every + '개월마다 반복되는 일정으로 들어가요. 검진일 일주일 전 아침 9시에 알림이 와요. 검진 날짜가 바뀌면 "오늘 다녀왔어요"를 누르고 다시 넣어 주세요.</div>'
-        : '<div class="dn-next">마지막 치과 검진 날짜를 넣으면 다음 검진일을 알려 드려요. 대한소아치과학회는 첫돌 무렵 첫 검진, 그 뒤 3~6개월마다 정기검진을 권해요.</div>') +
+      '<details class="dn-rsv"' + (di.rsv ? ' open' : '') + '><summary>📌 치과에서 다음 예약을 잡았어요</summary>' +
+        '<div class="dn-row"><label>예약 날짜<input type="date" id="dn-rsv" value="' + di.rsv + '"></label><label>시간 (선택)<input type="time" id="dn-rt" value="' + di.rt + '" step="600"></label></div>' +
+        '<div class="dn-row"><label>치과 이름 (선택)<input type="text" id="dn-hosp" maxlength="30" value="' + esc(di.hosp) + '" placeholder="예: 튼튼어린이치과"></label></div>' +
+        '<div class="dn-rsv-a"><button class="btn" id="dn-rsv-save">예약 저장</button>' + (di.rsv ? '<button class="btn ghost" id="dn-rsv-del">예약 지우기</button>' : '') + '</div>' +
+        '<div class="cal-hint">예약 날짜를 넣으면 계산한 날짜 대신 예약일로 알려 드려요.</div></details>' +
+      nextLine +
+      (past ? '<div class="dn-ask">예약일이 지났어요. 다녀왔나요? <button class="btn" id="dn-went">네, 다녀왔어요</button></div>' :
+       di.next ? '<div class="dn-btns"><button class="btn" id="dn-ics">📅 알림 넣기</button><button class="btn ghost" id="dn-gcal">구글 캘린더</button><button class="btn ghost" id="dn-today">다녀왔어요</button></div>' +
+        '<div class="cal-hint">' + (di.rsv ? '예약 하루 전 저녁 8시' + (di.rt ? '와 2시간 전' : '와 당일 아침 8시') + '에 알림이 와요.' : di.every + '개월마다 반복되는 일정으로 들어가요. 검진일 일주일 전 아침 9시에 알림이 와요.') + ' 다녀오면 "다녀왔어요"(오늘 날짜로 기록)를 눌러 주세요. 다음 날짜를 다시 계산해요.</div>' : '') +
       '<ul class="dn-tips">' + dentTips(m).map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ul>' +
       '<div class="dn-links"><a href="#" data-go-tab="benefit" data-go-pane="bn" data-go-anchor="bn-dental">🎁 아이 치아 혜택 자세히</a> · <a href="#" data-go-tab="region" data-go-mode="dental">🦷 가까운 소아치과 찾기</a></div></div>';
+  }
+  function dentEventText(di, who) {
+    return { title: '[' + who + '] 🦷 ' + (di.rsv ? '치과 예약' + (di.hosp ? ' (' + di.hosp + ')' : '') : '치과 정기검진'),
+      desc: (di.rsv ? '치과 예약일이에요.' : di.every + '개월마다 치과 정기검진·불소 도포를 상담하세요.') + ' 실란트(만 18세까지 본인부담 10%)·레진(만 12세까지) 건강보험 적용도 물어보세요.\n- 아이아플때' };
   }
   function dentIcs(kid, di, who) {
     var f = function (d) { return ymd(d).replace(/-/g, ''); };
     var stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
+    var tx = dentEventText(di, who), ev;
+    if (di.rsv && di.rt) {
+      var st = new Date(di.rsv + 'T' + di.rt + ':00'), z = function (d) { return d.toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z'); };
+      ev = ['DTSTART:' + z(st), 'DTEND:' + z(new Date(st.getTime() + 3600000)),
+        'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + icsEsc(who + ' 내일 치과 예약'), 'TRIGGER:-PT' + (st.getHours() * 60 + st.getMinutes() + 240) + 'M', 'END:VALARM',
+        'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + icsEsc(who + ' 2시간 뒤 치과 예약'), 'TRIGGER:-PT2H', 'END:VALARM'];
+    } else {
+      ev = ['DTSTART;VALUE=DATE:' + f(di.next), 'DTEND;VALUE=DATE:' + f(new Date(di.next.getTime() + 86400000)), 'TRANSP:TRANSPARENT'];
+      if (di.rsv) ev.push('BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + icsEsc(who + ' 내일 치과 예약'), 'TRIGGER:-PT4H', 'END:VALARM',
+        'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + icsEsc(who + ' 오늘 치과 예약'), 'TRIGGER:PT8H', 'END:VALARM');
+      else ev.push('RRULE:FREQ=MONTHLY;INTERVAL=' + di.every + ';COUNT=12',
+        'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + icsEsc(who + ' 치과 정기검진 일주일 전'), 'TRIGGER:-P6DT15H', 'END:VALARM');
+    }
     var lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//aiapulttae//dental//KO', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
-      'BEGIN:VEVENT', 'UID:' + kid.id + '-dental@aiapulttae', 'DTSTAMP:' + stamp,
-      'DTSTART;VALUE=DATE:' + f(di.next), 'DTEND;VALUE=DATE:' + f(new Date(di.next.getTime() + 86400000)),
-      'RRULE:FREQ=MONTHLY;INTERVAL=' + di.every + ';COUNT=12',
-      'SUMMARY:' + icsEsc('[' + who + '] 🦷 치과 정기검진'),
-      'DESCRIPTION:' + icsEsc(di.every + '개월마다 치과 정기검진·불소 도포를 상담하세요. 실란트(만 18세까지 본인부담 10%)·레진(만 12세까지) 건강보험 적용도 물어보세요.\n- 아이아플때'),
-      'TRANSP:TRANSPARENT',
-      'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + icsEsc(who + ' 치과 정기검진 일주일 전'), 'TRIGGER:-P6DT15H', 'END:VALARM',
-      'END:VEVENT', 'END:VCALENDAR'];
+      'BEGIN:VEVENT', 'UID:' + kid.id + '-dental' + (di.rsv ? '-' + di.rsv : '') + '@aiapulttae', 'DTSTAMP:' + stamp,
+      'SUMMARY:' + icsEsc(tx.title), 'DESCRIPTION:' + icsEsc(tx.desc)].concat(ev, ['END:VEVENT', 'END:VCALENDAR']);
     var blob = new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
     var url = URL.createObjectURL(blob), a = document.createElement('a');
     a.href = url; a.download = 'aiapulttae-dental.ics';
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
-    toast('반복 알림 파일을 만들었어요. 열어서 캘린더에 추가하세요');
+    toast((di.rsv ? '예약' : '반복') + ' 알림 파일을 만들었어요. 열어서 캘린더에 추가하세요');
   }
   function bindDent(kid) {
     var lastI = $('#dn-last'); if (!lastI) return;
-    var put = function (k, v) { var d = load('kiddent:' + kid.id, {}); d[k] = v; save('kiddent:' + kid.id, d); renderSched(); };
+    var key = 'kiddent:' + kid.id;
+    var put = function (o) { var d = load(key, {}); Object.keys(o).forEach(function (k) { d[k] = o[k]; }); save(key, d); renderSched(); };
+    var todayS = ymd(new Date());
     lastI.addEventListener('change', function () {
-      var v = lastI.value; if (v && new Date(v + 'T00:00:00') > new Date()) { toast('오늘 이후 날짜는 넣을 수 없어요'); return; }
-      put('last', v);
+      var v = lastI.value; if (v && v > todayS) { toast('오늘 이후 날짜는 넣을 수 없어요'); return; }
+      put({ last: v });
     });
-    $('#dn-every').addEventListener('change', function () { put('every', +$('#dn-every').value); });
-    var td = $('#dn-today'); if (td) td.addEventListener('click', function () { put('last', ymd(new Date())); toast('🦷 오늘 검진으로 기록했어요. 다음 검진일을 다시 계산했어요'); });
+    $('#dn-every').addEventListener('change', function () { put({ every: +$('#dn-every').value }); });
+    $('#dn-rsv-save').addEventListener('click', function () {
+      var v = $('#dn-rsv').value;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) { toast('예약 날짜를 골라 주세요'); return; }
+      if (v < todayS) { toast('지난 날짜예요. 이미 다녀왔다면 "마지막 치과 검진"에 넣어 주세요'); return; }
+      put({ rsv: v, rt: $('#dn-rt').value || '', hosp: $('#dn-hosp').value.trim().slice(0, 30) });
+      toast('📌 예약을 저장했어요. 캘린더에 알림도 넣어 보세요');
+    });
+    var rd = $('#dn-rsv-del'); if (rd) rd.addEventListener('click', function () { put({ rsv: '', rt: '', hosp: '' }); });
+    var went = function (day) { return function () { put({ last: day, rsv: '', rt: '', hosp: '' }); toast('🦷 검진을 기록했어요. 다음 검진일을 다시 계산했어요'); }; };
+    var di0 = dentInfo(kid);
+    var wb = $('#dn-went'); if (wb) wb.addEventListener('click', went(di0.rsv));
+    var td = $('#dn-today'); if (td) td.addEventListener('click', went(todayS));
     var ic = $('#dn-ics'); if (ic) ic.addEventListener('click', function () { var who = askCalName(kid); if (who) dentIcs(kid, dentInfo(kid), who); });
     var gc = $('#dn-gcal'); if (gc) gc.addEventListener('click', function () {
       var who = askCalName(kid); if (!who) return;
-      var di = dentInfo(kid), f = function (d) { return ymd(d).replace(/-/g, ''); };
-      window.open('https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent('[' + who + '] 🦷 치과 정기검진') +
-        '&dates=' + f(di.next) + '/' + f(new Date(di.next.getTime() + 86400000)) +
-        '&recur=' + encodeURIComponent('RRULE:FREQ=MONTHLY;INTERVAL=' + di.every + ';COUNT=12') +
-        '&details=' + encodeURIComponent(di.every + '개월마다 치과 정기검진·불소 도포 상담\n- 아이아플때'), '_blank', 'noopener');
+      var di = dentInfo(kid), tx = dentEventText(di, who), f = function (d) { return ymd(d).replace(/-/g, ''); }, dates;
+      if (di.rsv && di.rt) { var s = (di.rsv + 'T' + di.rt).replace(/[-:]/g, '') + '00', e = new Date(di.rsv + 'T' + di.rt + ':00'); e = new Date(e.getTime() + 3600000); dates = s + '/' + f(e) + 'T' + pad(e.getHours()) + pad(e.getMinutes()) + '00'; }
+      else dates = f(di.next) + '/' + f(new Date(di.next.getTime() + 86400000));
+      window.open('https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent(tx.title) + '&dates=' + dates +
+        (di.rsv ? '&ctz=Asia%2FSeoul' : '&recur=' + encodeURIComponent('RRULE:FREQ=MONTHLY;INTERVAL=' + di.every + ';COUNT=12')) +
+        '&details=' + encodeURIComponent(tx.desc), '_blank', 'noopener');
     });
   }
   var showAllSched = false;
