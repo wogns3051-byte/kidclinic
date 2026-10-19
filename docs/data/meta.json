@@ -1,10 +1,10 @@
 {
- "dentalCount": 14644,
- "dentalKids": 279,
- "updatedAt": "2026-10-16T00:00:55.674Z",
- "count": 15122,
+ "dentalCount": 14646,
+ "dentalKids": 324,
+ "updatedAt": "2026-10-19T00:00:38.489Z",
+ "count": 15123,
  "withHours": 14678,
- "pedsCount": 3314,
+ "pedsCount": 3405,
  "regions": {
   "110000": {
    "name": "서울",
