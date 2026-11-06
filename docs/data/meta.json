@@ -1,9 +1,9 @@
 {
- "dentalCount": 14663,
+ "dentalCount": 14665,
  "dentalKids": 531,
- "updatedAt": "2026-11-05T00:00:59.582Z",
- "count": 15112,
- "withHours": 14671,
+ "updatedAt": "2026-11-06T00:00:38.781Z",
+ "count": 15114,
+ "withHours": 14681,
  "pedsCount": 3406,
  "regions": {
   "110000": {
@@ -410,7 +410,7 @@
   "2027-12-25",
   "2027-12-27"
  ],
- "pharmCount": 25443,
- "pharmAt": "2026-10-29T00:02:58.313Z",
+ "pharmCount": 25437,
+ "pharmAt": "2026-11-06T00:02:14.128Z",
  "source": "건강보험심사평가원 병원정보서비스·의료기관별상세정보서비스"
 }
