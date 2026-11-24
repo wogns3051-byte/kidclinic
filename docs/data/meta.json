@@ -1,10 +1,10 @@
 {
  "dentalCount": 14669,
  "dentalKids": 533,
- "updatedAt": "2026-11-22T23:39:31.010Z",
- "count": 15112,
- "withHours": 14673,
- "pedsCount": 3404,
+ "updatedAt": "2026-11-24T00:12:15.979Z",
+ "count": 15114,
+ "withHours": 14682,
+ "pedsCount": 3405,
  "regions": {
   "110000": {
    "name": "서울",
@@ -411,6 +411,6 @@
   "2027-12-27"
  ],
  "pharmCount": 25434,
- "pharmAt": "2026-11-16T00:59:53.385Z",
+ "pharmAt": "2026-11-24T00:35:32.622Z",
  "source": "건강보험심사평가원 병원정보서비스·의료기관별상세정보서비스"
 }
